@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
+  </script>
+
+  <meta name="description" content="本文总结 InnoDB 事务隔离级别和 MVCC 的相关概念。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="InnoDB 事务隔离级别与MVCC">
+<meta property="og:url" content="https://blog.leejianyang.me/2020/11/09/isolation-level-and-mvcc/index.html">
+<meta property="og:site_name" content="LEE&#39;s Blog">
+<meta property="og:description" content="本文总结 InnoDB 事务隔离级别和 MVCC 的相关概念。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-11-08T16:00:00.000Z">
+<meta property="article:author" content="李剑扬">
+<meta property="article:tag" content="MySQL">
+<meta property="article:tag" content="InnoDB">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://blog.leejianyang.me/2020/11/09/isolation-level-and-mvcc/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh'
+  };
+</script>
+
+  <title>InnoDB 事务隔离级别与MVCC | LEE's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">LEE's Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <section class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8B%E5%8A%A1%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB"><span class="nav-number">1.</span> <span class="nav-text">事务隔离级别</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MVCC"><span class="nav-number">2.</span> <span class="nav-text">MVCC</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%80%E5%8D%95%E7%A4%BA%E4%BE%8B"><span class="nav-number">2.1.</span> <span class="nav-text">简单示例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%8B%E5%8A%A1-ID-%E7%9A%84%E7%94%9F%E6%88%90%E6%97%B6%E9%97%B4"><span class="nav-number">2.2.</span> <span class="nav-text">事务 ID 的生成时间</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BF%AE%E6%94%B9%E6%95%B0%E6%8D%AE%E7%9A%84%E6%83%85%E5%86%B5"><span class="nav-number">2.3.</span> <span class="nav-text">修改数据的情况</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#READ-COMMITTED-%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB"><span class="nav-number">2.4.</span> <span class="nav-text">READ COMMITTED 隔离级别</span></a></li></ol></li></ol></div>
+        </section>
+        <!--/noindex-->
+
+        <section class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">李剑扬</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">categories</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">36</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </section>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/2020/11/09/isolation-level-and-mvcc/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="李剑扬">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LEE's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          InnoDB 事务隔离级别与MVCC
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-11-09 00:00:00" itemprop="dateCreated datePublished" datetime="2020-11-09T00:00:00+08:00">2020-11-09</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/coding/" itemprop="url" rel="index"><span itemprop="name">coding</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>本文总结 InnoDB 事务隔离级别和 MVCC 的相关概念。</p>
+<a id="more"></a>
+
+<h2 id="事务隔离级别"><a href="#事务隔离级别" class="headerlink" title="事务隔离级别"></a>事务隔离级别</h2><p>事务隔离级别是为了解决，当有多个事务同时对数据库进行并发读写时，一个事务对数据的修改是如何影响其余事务的读写结果的问题。因为一个事务对数据进行修改，可能会造成其余并发事务的逻辑混乱（得不到预期的数据操作结果），所以 InnoDB 提供了几种级别的事务隔离机制，分别是：</p>
+<ul>
+<li>SERIALIZABLE 串行化</li>
+<li>REPEATABLE READ 可重复读</li>
+<li>READ COMMITTED 读提交</li>
+<li>READ UNCOMMITTED 读未提交</li>
+</ul>
+<p>不同强度级别的事务隔离机制，可以解决不同的事务并发问题。常见的事务并发问题有脏读（dirty read）、不可重复读（non-repeatable read）和幻读（phantom read）：</p>
+<ul>
+<li>脏读：一个事务读到了其余事务未提交的修改结果</li>
+<li>不可重复读：一个事务多次读到的数据内容不一致（由别的事务修改造成的不一致，而不是由当前事务自身修改造成的不一致）</li>
+<li>幻读：一个事务的同一个查询，多次执行读到的数据条数不一致</li>
+</ul>
+<p>最严格的事务隔离级别是 SERIALIZABLE，在该隔离级别下，如果一个事务对某些数据进行读操作，其余事务就不能对这些数据就行增删改操作了，SERIALIZABLE 可以解决脏读、不可重复读和幻读的问题，但其对并发性能影响较大，并不常用。而最弱的隔离级别——READ UNCOMMITTED，则是什么问题都避免不了，所以也不常用。因而比较常用的事物隔离级别是 REPEATABLE READ 和 READ COMMITTED，REPEATABLE READ 可以解决脏读和不可重复读的问题，READ COMMITTED 则是可以解决脏读的问题。InnoDB 默认的事务隔离级别是 REPEATABLE READ。</p>
+<p>无论选择哪种隔离级别，特别是 REPEATABLE READ 和 READ COMMITTED 之间的取舍，需要了解 InnoDB 背后如何实现事务隔离，以及在这些隔离级别下，一些常见的数据查改场景会发生什么事情。</p>
+<h2 id="MVCC"><a href="#MVCC" class="headerlink" title="MVCC"></a>MVCC</h2><p>MVCC 是多版本并发控制（multiversion concurrency control）的缩写。「多版本」顾名思义，就是 InnoDB 会为并发修改的数据保存多个版本，这样做是为了给事务提供一致性读（consistent read）的操作能力，而且这种机制的好处是可以减少对数据进行加锁，不会因过多的锁而影响并发性能。</p>
+<p>MVCC 的基本工作原理是这样的，每个数据行保存着多个历史版本，每个历史版本中有一个 trx_id 值，该值表示这个版本的数据是由哪一条事务创建的（包括删除数据也同理）。trx_id 可以称为事务ID，是单调递增的数字。而各个事务需要进行一致性非锁定读的时候，就逐个逐个历史版本进行查看，判断对于自己来说该版本是否可见。至于是如何判定是否可见的，用到一个叫做 ReadView 的东西，这个 ReadView 是每个事务各自独立的，ReadView 包括几个概念：</p>
+<ul>
+<li>m_ids：在生成 ReadView 时当前系统中活跃的事务的 trx_id 列表</li>
+<li>min_trx_id：m_ids 中的最小值</li>
+<li>max_trx_id：生成该 ReadView 时，应该分配给下一个事务的 trx_id 值</li>
+<li>creator_trx_id：生成该 ReadView 的事务的 trx_id</li>
+</ul>
+<p>当事务进行一致性非锁定读的时候，由新到旧遍历数据的历史版本，若：</p>
+<ul>
+<li>该版本的 trx_id 与 creator_trx_id 相同，表示该版本是自己修改的记录，当然可见</li>
+<li>该版本的 trx_id 小于 min_trx_id，表示该版本在本事务开始前已经提交，所以该版本可被本事务可见</li>
+<li>该版本的 trx_id 大于或等于 max_trx_id，那么该版本本事务是不可见的</li>
+<li>该版本的 trx_id 在 min_trx_id 和 max_trx_id 之间的话，就要看看 trx_id 是否在 m_ids 列表里面，如果在，则本事务不可见；如果不在，则本事务可见。</li>
+</ul>
+<p>接下来看看一些案例。使用以下的数据表结构说明 MVCC 的基本原理：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`t`</span> (</span><br><span class="line">  <span class="string">`id`</span> <span class="built_in">int</span>(<span class="number">11</span>) <span class="keyword">unsigned</span> <span class="keyword">NOT</span> <span class="literal">NULL</span> AUTO_INCREMENT,</span><br><span class="line">  <span class="string">`val`</span> <span class="built_in">int</span>(<span class="number">11</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`id`</span>)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=utf8mb4;</span><br></pre></td></tr></table></figure>
+
+<h3 id="简单示例"><a href="#简单示例" class="headerlink" title="简单示例"></a>简单示例</h3><p>先看一个最简单的场景，事务隔离级别是可重复读，autocommit=1（下同）：</p>
+<table>
+<thead>
+<tr>
+<th>时刻</th>
+<th>事务A</th>
+<th>事务B</th>
+<th>事务C</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>t0</td>
+<td>insert into t(1, 1);</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>t1</td>
+<td></td>
+<td>begin();</td>
+<td></td>
+</tr>
+<tr>
+<td>t2</td>
+<td></td>
+<td>select val from t where id=1;</td>
+<td></td>
+</tr>
+<tr>
+<td>t3</td>
+<td></td>
+<td></td>
+<td>update t set val=2 where id=1;</td>
+</tr>
+<tr>
+<td>t4</td>
+<td></td>
+<td>select val from t where id=1;</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>根据可重复读的定义，事务 B 在 t4 时刻读到的 val 值依然为 1，那么显然 InnoDB 既保留了(1, 1) 又保留了 (1, 2) 这两个版本。假设事务 A 的 trx_id 是 3，事务 B 的 trx_id 是 4, 事务 C 的 trx_id 是5。那么事务 B 的 ReadView 的 m_ids 是[4]，min_trx_id 是 4，max_trx_id 是 5，creator_trx_id 是 4。在 t4 时刻，id=1 的数据行的版本分别是 [trx_id=3，val=1]和[trx_id=5, val=2]，显然，事务 B 只能读到 trx_id=3 的数据。</p>
+<h3 id="事务-ID-的生成时间"><a href="#事务-ID-的生成时间" class="headerlink" title="事务 ID 的生成时间"></a>事务 ID 的生成时间</h3><p>以下各种情况，事务隔离级别都是 REPEATABLE READ，在 t0 时刻，id=1 的行 val 值都为 1。<br>情况一：</p>
+<table>
+<thead>
+<tr>
+<th>时刻</th>
+<th>事务A</th>
+<th>事务B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>t1</td>
+<td>begin();</td>
+<td></td>
+</tr>
+<tr>
+<td>t2</td>
+<td></td>
+<td>update t set val=2 where id=1;</td>
+</tr>
+<tr>
+<td>t3</td>
+<td>select val from t where id=1;</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>情况二：</p>
+<table>
+<thead>
+<tr>
+<th>时刻</th>
+<th>事务A</th>
+<th>事务B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>t1</td>
+<td>begin();</td>
+<td></td>
+</tr>
+<tr>
+<td>t2</td>
+<td>select val from t where id=2;</td>
+<td></td>
+</tr>
+<tr>
+<td>t3</td>
+<td></td>
+<td>update t set val=2 where id=1;</td>
+</tr>
+<tr>
+<td>t4</td>
+<td>select val from t where id=1;</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>情况三：</p>
+<table>
+<thead>
+<tr>
+<th>时刻</th>
+<th>事务A</th>
+<th>事务B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>t1</td>
+<td>begin();</td>
+<td></td>
+</tr>
+<tr>
+<td>t2</td>
+<td>update t set val=1000 where id=2;</td>
+<td></td>
+</tr>
+<tr>
+<td>t3</td>
+<td></td>
+<td>update t set val=2 where id=1;</td>
+</tr>
+<tr>
+<td>t4</td>
+<td>select val from t where id=1;</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>对比以上三种情况，在情况一的 t3 时刻，事务 A 读到的 val 值是 1；而情况二、三中，在 t4 时刻，事务 A 读到的 val 值都是2。由此可知，生成事务的版本号的实际时机不是事务开始时，而是事务首次进行一致性读的时刻。</p>
+<h3 id="修改数据的情况"><a href="#修改数据的情况" class="headerlink" title="修改数据的情况"></a>修改数据的情况</h3><p>在 t0 时刻，id=1 的行 val 值为 0，事务隔离级别是 REPEATABLE READ，进行如下操作：</p>
+<table>
+<thead>
+<tr>
+<th>时刻</th>
+<th>事务A</th>
+<th>事务B</th>
+<th>事务C</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>t1</td>
+<td>begin;</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>t2</td>
+<td></td>
+<td>begin</td>
+<td></td>
+</tr>
+<tr>
+<td>t3</td>
+<td>select val from t where id=2;</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>t4</td>
+<td></td>
+<td>select val from t where id=2;</td>
+<td></td>
+</tr>
+<tr>
+<td>t5</td>
+<td></td>
+<td></td>
+<td>update t set val=2 where id=1;</td>
+</tr>
+<tr>
+<td>t6</td>
+<td></td>
+<td>update t set val=val+1 where id=1;</td>
+<td></td>
+</tr>
+<tr>
+<td>t7</td>
+<td></td>
+<td>select val from t where id=1;</td>
+<td></td>
+</tr>
+<tr>
+<td>t8</td>
+<td>select val from t where id=1;</td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>在 t8 时刻，事务 A 读到 val 的值依然是 1，因为事务 A 的事务编号比事务 C 的要小，所以事务 C 对 id=1 的行的更新，事务A 进行一致性读的时候是看不到的；但是 t7 时刻，事务 B 查询到的 val 值是3，意味着在 t6 时刻事务 B 对 val 的修改是基于事务 C 已提交的结果来修改的，它进行的不是一致性读，而是要对数据进行修改，所以要基于最新的已提交事务的数据版本进行修改。</p>
+<p>再来看下一个例子，事务隔离级别还是 REPEATABLE READ</p>
+<table>
+<thead>
+<tr>
+<th>时刻</th>
+<th>事务A</th>
+<th>事务B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>t1</td>
+<td>begin;</td>
+<td></td>
+</tr>
+<tr>
+<td>t2</td>
+<td></td>
+<td>begin;</td>
+</tr>
+<tr>
+<td>t3</td>
+<td>update t set val=val+1 where id=1;</td>
+<td></td>
+</tr>
+<tr>
+<td>t4</td>
+<td></td>
+<td>update t set val=val+1 where id=1;</td>
+</tr>
+</tbody></table>
+<p>在 t4 时刻，由于事务 A 对 id=1 的行进行修改却未进行提交，所以事务 B 对 id=1 的行的修改会一直被阻塞，直到事务 A 提交或者回滚为止。这里并不是一致性非锁定读的情况，就超出了 MVCC 的范畴了。</p>
+<p>再看一种情况，t0 时刻 id=1 的行的 val 值是 1，事务隔离级别还是 REPEATABLE READ。</p>
+<table>
+<thead>
+<tr>
+<th>时刻</th>
+<th>事务A</th>
+<th>事务B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>t1</td>
+<td>begin;</td>
+<td></td>
+</tr>
+<tr>
+<td>t2</td>
+<td></td>
+<td>begin;</td>
+</tr>
+<tr>
+<td>t3</td>
+<td>update t set val=val+1 where id=1;</td>
+<td></td>
+</tr>
+<tr>
+<td>t4</td>
+<td></td>
+<td>select val from t where id=1</td>
+</tr>
+</tbody></table>
+<p>这里 t4 时刻事务 B 读到的 val 值还是 1，而且不会被事务 A 在 t3 时刻的修改操作阻塞，因为事务 B 在这里进行的还是一致性非锁定读，还是利用 MVCC 机制进行查询。</p>
+<h3 id="READ-COMMITTED-隔离级别"><a href="#READ-COMMITTED-隔离级别" class="headerlink" title="READ COMMITTED 隔离级别"></a>READ COMMITTED 隔离级别</h3><p>前文已经提到了，READ COMMITTED 就是可以读到别的事务已经提交的数据。具体到 MVCC 机制里面，就是 REPEATABLE READ 在第一次进行一致性非锁定读的时候生成本事务的 ReadView，而 READ COMMITTED 是每一次进行一致性非锁定读的时候都要重新生成一次 ReadView。</p>
+<hr>
+<p>参考资料：</p>
+<ul>
+<li>《MySQL是怎样运行的：从根儿上理解 MySQL》，作者：小孩子4919</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MySQL/" rel="tag"># MySQL</a>
+              <a href="/tags/InnoDB/" rel="tag"># InnoDB</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/10/29/innodb-redo-log-intro/" rel="prev" title="InnoDB Redo Log 基本机制">
+                  <i class="fa fa-chevron-left"></i> InnoDB Redo Log 基本机制
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+      
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李剑扬</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

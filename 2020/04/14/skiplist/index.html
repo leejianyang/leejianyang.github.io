@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
+  </script>
+
+  <meta name="description" content="跳跃表（skip list）是有序单链表的变体。众所周知，单链表主要的缺点是查找效率低；而跳跃表则大大提升了元素的查找效率。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="跳跃表">
+<meta property="og:url" content="https://blog.leejianyang.me/2020/04/14/skiplist/index.html">
+<meta property="og:site_name" content="LEE&#39;s Blog">
+<meta property="og:description" content="跳跃表（skip list）是有序单链表的变体。众所周知，单链表主要的缺点是查找效率低；而跳跃表则大大提升了元素的查找效率。">
+<meta property="og:locale">
+<meta property="og:image" content="https://raw.githubusercontent.com/leejianyang/pic/master/skiplist/1.jpeg">
+<meta property="article:published_time" content="2020-04-14T09:18:37.000Z">
+<meta property="article:author" content="李剑扬">
+<meta property="article:tag" content="数据结构">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/leejianyang/pic/master/skiplist/1.jpeg">
+
+
+<link rel="canonical" href="https://blog.leejianyang.me/2020/04/14/skiplist/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh'
+  };
+</script>
+
+  <title>跳跃表 | LEE's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">LEE's Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <section class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%B7%B3%E8%B7%83%E8%A1%A8%E7%9A%84%E7%BB%93%E6%9E%84%E5%92%8C%E7%89%B9%E7%82%B9"><span class="nav-number">1.</span> <span class="nav-text">跳跃表的结构和特点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.</span> <span class="nav-text">代码实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%B7%B3%E8%B7%83%E8%A1%A8%E7%9A%84%E5%BA%94%E7%94%A8"><span class="nav-number">3.</span> <span class="nav-text">跳跃表的应用</span></a></li></ol></div>
+        </section>
+        <!--/noindex-->
+
+        <section class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">李剑扬</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">categories</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">36</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </section>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/2020/04/14/skiplist/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="李剑扬">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LEE's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          跳跃表
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-04-14 17:18:37" itemprop="dateCreated datePublished" datetime="2020-04-14T17:18:37+08:00">2020-04-14</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/coding/" itemprop="url" rel="index"><span itemprop="name">coding</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>跳跃表（skip list）是有序单链表的变体。众所周知，单链表主要的缺点是查找效率低；而跳跃表则大大提升了元素的查找效率。</p>
+<a id="more"></a>
+
+<h2 id="跳跃表的结构和特点"><a href="#跳跃表的结构和特点" class="headerlink" title="跳跃表的结构和特点"></a>跳跃表的结构和特点</h2><p><img src="https://raw.githubusercontent.com/leejianyang/pic/master/skiplist/1.jpeg"></p>
+<p>一图胜千言。一个跳跃表中有多个层级，可以理解为每个层级都是一条有序单链表；但是数据是跨层级共享的，并不需要每个层级都单独保存一份数据。</p>
+<p>这种结构与单纯的有序单链表对比，从空间上来说，多出了指针的存储空间；从效率来说，牺牲了一点点插入和删除的效率，但是提升了查询的效率。而跳跃表的实现方式是相对简单的，是平衡树的不错的替代品。</p>
+<h2 id="代码实现"><a href="#代码实现" class="headerlink" title="代码实现"></a>代码实现</h2><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Node</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="variable">$data</span>;</span><br><span class="line">    <span class="comment">// 指向后继元素的指针，因为有多层指针，所以使用数组</span></span><br><span class="line">    <span class="keyword">public</span> <span class="variable">$next</span> = [];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"><span class="variable">$val</span>, <span class="variable">$indexLevel</span></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">$this</span>-&gt;data = <span class="variable">$val</span>;</span><br><span class="line">        <span class="keyword">$this</span>-&gt;next = array_fill(<span class="number">0</span>, <span class="variable">$indexLevel</span>+<span class="number">1</span>, <span class="literal">null</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SkipList</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="comment">// 跳跃表最大层级</span></span><br><span class="line">    <span class="keyword">private</span> <span class="variable">$maxLevel</span>;</span><br><span class="line">    <span class="comment">// 表头节点</span></span><br><span class="line">    <span class="keyword">private</span> <span class="variable">$head</span>;</span><br><span class="line">    <span class="comment">// 跳跃表当前已经使用了多少层</span></span><br><span class="line">    <span class="keyword">private</span> <span class="variable">$currentLevel</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"><span class="variable">$maxLevel</span> = <span class="number">8</span></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        assert(<span class="variable">$maxLevel</span> &gt; <span class="number">0</span>);</span><br><span class="line">        <span class="keyword">$this</span>-&gt;maxLevel = <span class="variable">$maxLevel</span>;</span><br><span class="line">        <span class="keyword">$this</span>-&gt;head = <span class="keyword">new</span> Node(<span class="literal">null</span>, <span class="variable">$maxLevel</span>);</span><br><span class="line">        <span class="keyword">$this</span>-&gt;currentLevel = <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 插入元素</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">add</span>(<span class="params"><span class="variable">$val</span></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">$this</span>-&gt;find(<span class="variable">$val</span>)) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 决定新插入的元素有多少层指针</span></span><br><span class="line">        <span class="variable">$nodeLevel</span> = <span class="keyword">$this</span>-&gt;getRandomLevel();</span><br><span class="line">        <span class="comment">// 记录跳跃表当前有多少层被使用了</span></span><br><span class="line">        <span class="keyword">$this</span>-&gt;currentLevel = max(<span class="variable">$nodeLevel</span>, <span class="keyword">$this</span>-&gt;currentLevel);</span><br><span class="line">        <span class="comment">// 初始化新节点</span></span><br><span class="line">        <span class="variable">$newNode</span> = <span class="keyword">new</span> Node(<span class="variable">$val</span>, <span class="variable">$nodeLevel</span>);</span><br><span class="line"></span><br><span class="line">        <span class="variable">$node</span> = <span class="keyword">$this</span>-&gt;head;</span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">         * 逐层修改每一层的链结构，本质上就是每层都进行一次单链表插入操作，但节点是夸层级的</span></span><br><span class="line"><span class="comment">         * 但是并不需要每一层都从头开始遍历来确定插入位置</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="variable">$level</span> = <span class="variable">$nodeLevel</span>; <span class="variable">$level</span> &gt;= <span class="number">0</span>; <span class="variable">$level</span>--) &#123;</span><br><span class="line">            <span class="variable">$nextNode</span> = <span class="keyword">$this</span>-&gt;head-&gt;next[<span class="variable">$level</span>];</span><br><span class="line"></span><br><span class="line">            <span class="keyword">while</span> (<span class="variable">$nextNode</span> != <span class="literal">null</span> &amp;&amp; <span class="variable">$nextNode</span>-&gt;data &lt; <span class="variable">$val</span>) &#123;</span><br><span class="line">                <span class="variable">$node</span> = <span class="variable">$nextNode</span>;</span><br><span class="line">                <span class="variable">$nextNode</span> = <span class="variable">$node</span>-&gt;next[<span class="variable">$level</span>];</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="variable">$node</span>-&gt;next[<span class="variable">$level</span>] = <span class="variable">$newNode</span>;</span><br><span class="line">            <span class="variable">$newNode</span>-&gt;next[<span class="variable">$level</span>] = <span class="variable">$nextNode</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 删除节点</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">delete</span>(<span class="params"><span class="variable">$val</span></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable">$node</span> = <span class="keyword">$this</span>-&gt;head;</span><br><span class="line">        <span class="comment">// 逐层执行一次单链表的删除节点操作</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="variable">$level</span> = <span class="keyword">$this</span>-&gt;currentLevel; <span class="variable">$level</span> &gt;= <span class="number">0</span>; <span class="variable">$level</span>--) &#123;</span><br><span class="line">            <span class="variable">$nextNode</span> = <span class="variable">$node</span>-&gt;next[<span class="variable">$level</span>];</span><br><span class="line">            <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (<span class="variable">$nextNode</span> == <span class="literal">null</span> || <span class="variable">$nextNode</span>-&gt;data &gt; <span class="variable">$val</span>) &#123;</span><br><span class="line">                    <span class="comment">// 该层找不到目标元素</span></span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125; <span class="keyword">elseif</span> (<span class="variable">$nextNode</span>-&gt;data == <span class="variable">$val</span>) &#123;</span><br><span class="line">                    <span class="comment">// 该层找到目标元素</span></span><br><span class="line">                    <span class="keyword">if</span> (<span class="variable">$node</span>-&gt;next[<span class="variable">$level</span>]-&gt;data === <span class="literal">null</span>) &#123;</span><br><span class="line">                        <span class="comment">// 该层已清空</span></span><br><span class="line">                        <span class="keyword">$this</span>-&gt;currentLevel--;</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="variable">$node</span>-&gt;next[<span class="variable">$level</span>] = <span class="variable">$nextNode</span>-&gt;next[<span class="variable">$level</span>];</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="variable">$node</span> = <span class="variable">$nextNode</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 查找元素是否存在</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">find</span>(<span class="params"><span class="variable">$val</span></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable">$level</span> = <span class="keyword">$this</span>-&gt;currentLevel;</span><br><span class="line"></span><br><span class="line">        <span class="variable">$node</span> = <span class="keyword">$this</span>-&gt;head;</span><br><span class="line">        <span class="variable">$nextNode</span> = <span class="variable">$node</span>-&gt;next[<span class="variable">$level</span>];</span><br><span class="line">        <span class="comment">// 从高层往低层逐层查找，每层都是一条有序的单链表</span></span><br><span class="line">        <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (<span class="variable">$nextNode</span> == <span class="literal">null</span> || <span class="variable">$nextNode</span>-&gt;data &gt; <span class="variable">$val</span>) &#123;</span><br><span class="line">                <span class="comment">// 在本层找不到，下降一层；如果当前已经是第0层了，意味着目标元素不在当前跳跃表中</span></span><br><span class="line">                <span class="keyword">if</span> (<span class="variable">$level</span> == <span class="number">0</span>) &#123;</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="variable">$level</span>--;</span><br><span class="line">                <span class="variable">$nextNode</span> = <span class="variable">$node</span>-&gt;next[<span class="variable">$level</span>];</span><br><span class="line">            &#125; <span class="keyword">elseif</span> (<span class="variable">$nextNode</span>-&gt;data == <span class="variable">$val</span>) &#123;</span><br><span class="line">                <span class="comment">// 找到目标元素</span></span><br><span class="line">                <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="comment">// 继续在本层遍历下一个元素</span></span><br><span class="line">                <span class="variable">$node</span> = <span class="variable">$nextNode</span>;</span><br><span class="line">                <span class="variable">$nextNode</span> = <span class="variable">$node</span>-&gt;next[<span class="variable">$level</span>];</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">function</span> <span class="title">getRandomLevel</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> rand(<span class="number">0</span>, <span class="keyword">$this</span>-&gt;maxLevel<span class="number">-1</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上是我对跳跃表的一个简单实现。其中最主要的问题是，每次插入新元素的时候，我对每个节点的层级都是随机分配的，这样会很影响查询的效率。理想情况下，应该是每层级节点的数量逐层递减的。例如：第 4 层有 2 个节点，第 3 层有 4 个节点，第 2 层有 8 个节点，第 1 层有 16 个节点，第 0 层有全部节点。</p>
+<h2 id="跳跃表的应用"><a href="#跳跃表的应用" class="headerlink" title="跳跃表的应用"></a>跳跃表的应用</h2><p>在 Redis 中，就是使用跳跃表作为 SortedSet 的底层数据结构的。使用跳跃表的原因，就是它实现简单，而效率也相当不错。</p>
+<hr>
+<p>参考资料：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://epaperpress.com/sortsearch/download/skiplist.pdf">Skip Lists: A Probabilistic Alternative to Balanced Trees</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" rel="tag"># 数据结构</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/03/06/2pc/" rel="prev" title="分布式事务数据一致性方案：两阶段提交协议">
+                  <i class="fa fa-chevron-left"></i> 分布式事务数据一致性方案：两阶段提交协议
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/05/20/slim01-life-cycle/" rel="next" title="Slim Framework 源码阅读（一）：生命周期基本流程">
+                  Slim Framework 源码阅读（一）：生命周期基本流程 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+      
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李剑扬</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

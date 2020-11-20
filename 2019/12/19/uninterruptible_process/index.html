@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
+  </script>
+
+  <meta name="description" content="在 uptime 命令的 man 信息中，对系统平均负载给出的定义是这样的：「System load averages is the average number of processes that are either in a runnable or uninterruptable state」。平均负载当然是一个直观反映系统当前负载程度的指标，有些人会误以为这个数值越高，就表明 CPU 的使">
+<meta property="og:type" content="article">
+<meta property="og:title" content="关于 Linux 的平均负载和进程的不可中断状态">
+<meta property="og:url" content="https://blog.leejianyang.me/2019/12/19/uninterruptible_process/index.html">
+<meta property="og:site_name" content="LEE&#39;s Blog">
+<meta property="og:description" content="在 uptime 命令的 man 信息中，对系统平均负载给出的定义是这样的：「System load averages is the average number of processes that are either in a runnable or uninterruptable state」。平均负载当然是一个直观反映系统当前负载程度的指标，有些人会误以为这个数值越高，就表明 CPU 的使">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-12-18T16:00:00.000Z">
+<meta property="article:author" content="李剑扬">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="操作系统">
+<meta property="article:tag" content="性能分析">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://blog.leejianyang.me/2019/12/19/uninterruptible_process/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh'
+  };
+</script>
+
+  <title>关于 Linux 的平均负载和进程的不可中断状态 | LEE's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">LEE's Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <section class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B%E7%9A%84%E4%B8%8D%E5%8F%AF%E4%B8%AD%E6%96%AD%E7%8A%B6%E6%80%81"><span class="nav-number">1.</span> <span class="nav-text">进程的不可中断状态</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E7%B3%BB%E7%BB%9F%E5%B9%B3%E5%9D%87%E8%B4%9F%E8%BD%BD%E8%A6%81%E7%AE%97%E4%B8%8A%E4%B8%8D%E5%8F%AF%E4%B8%AD%E6%96%AD%E7%8A%B6%E6%80%81%E7%9A%84%E8%BF%9B%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">为什么系统平均负载要算上不可中断状态的进程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
+        </section>
+        <!--/noindex-->
+
+        <section class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">李剑扬</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">categories</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">36</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </section>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/2019/12/19/uninterruptible_process/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="李剑扬">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LEE's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          关于 Linux 的平均负载和进程的不可中断状态
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2019-12-19 00:00:00" itemprop="dateCreated datePublished" datetime="2019-12-19T00:00:00+08:00">2019-12-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/coding/" itemprop="url" rel="index"><span itemprop="name">coding</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>在 uptime 命令的 man 信息中，对系统平均负载给出的定义是这样的：「System load averages is the average number of processes that are either in a runnable or uninterruptable state」。平均负载当然是一个直观反映系统当前负载程度的指标，有些人会误以为这个数值越高，就表明 CPU 的使用率越高。那究竟什么是进程的 uninterruptable 状态？为什么 load averages 既包括runnable 状态的进程，又要包括 uninterruptable 状态的进程？</p>
+<a id="more"></a>
+
+<h2 id="进程的不可中断状态"><a href="#进程的不可中断状态" class="headerlink" title="进程的不可中断状态"></a>进程的不可中断状态</h2><p>在操作系统教科书上面，通常一个进程的状态分为「就绪」、「运行」和「阻塞」，其中「阻塞」表示进程正在等待某些事件（例如 I/O）的发生，而「就绪」和「运行」状态的进程都可以被 CPU 继续执行。</p>
+<p>再顺便看看 Linux 中对进程状态的分类：</p>
+<ul>
+<li>D: uninterruptible sleep (usually IO)</li>
+<li>I: Idle kernel thread</li>
+<li>R: running or runnable (on run queue)</li>
+<li>S: interruptible sleep (waiting for an event to complete)</li>
+<li>T: stopped by job control signal</li>
+<li>t: stopped by debugger during the tracing</li>
+<li>W: paging (not valid since the 2.6.xx kernel)</li>
+<li>X: dead (should never be seen)</li>
+<li>Z: defunct (“zombie”) process, terminated but not reaped by its parent</li>
+</ul>
+<p>其中 interruptible sleep 和 uninterruptible sleep 是可以摆在一起对比的；处于「可中断休眠」状态的进程可能在等待终端输入，可能在等待数据写入当前的空管道；而处于「不可中断休眠」状态的进程可能是在等待 I/O 的完成。重要的区别是前者可以立刻对信号做出响应，但<strong>处于不可中断状态的进程不能响应信号</strong>。通常「不可中断休眠」状态不会持续很久，如果进程长时间一直维持在这个状态，就需要排查问题了。</p>
+<h2 id="为什么系统平均负载要算上不可中断状态的进程"><a href="#为什么系统平均负载要算上不可中断状态的进程" class="headerlink" title="为什么系统平均负载要算上不可中断状态的进程"></a>为什么系统平均负载要算上不可中断状态的进程</h2><p>看完 uptime 的 man 手册中关于系统平均负载的定义之后，我最大的疑问是：为什么要算上不可中断状态的进程？难道不是处于「就绪」和「运行」状态的进程越多，系统就越「卡」平均负载越「高」吗？我找到一篇非常好的文章：<a target="_blank" rel="noopener" href="http://www.brendangregg.com/blog/2017-08-08/linux-load-averages.html">Brendan Gregg 写的《Linux Load Averages: Solving the Mystery》</a> 解释这个问题。</p>
+<p>在这篇文章中，Brendan Gregg 指出一些很古典的计算机系统，平均负载的定义只考虑单位时间内可运行的进程数，他也很疑惑为什么 Linux 系统的平均负载要扯上不可中断的进程数。经过一番努力，他在一封写于 1993 年的邮件中找到答案：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">From: Matthias Urlichs &lt;urlichs@smurf.sub.org&gt;</span><br><span class="line">Subject: Load average broken ?</span><br><span class="line">Date: Fri, 29 Oct 1993 11:37:23 +0200</span><br><span class="line"></span><br><span class="line">The kernel only counts &quot;runnable&quot; processes when computing the load average.</span><br><span class="line">I don&#39;t like that; the problem is that processes which are swapping or</span><br><span class="line">waiting on &quot;fast&quot;, i.e. noninterruptible, I&#x2F;O, also consume resources.</span><br><span class="line"></span><br><span class="line">It seems somewhat nonintuitive that the load average goes down when you</span><br><span class="line">replace your fast swap disk with a slow swap disk...</span><br><span class="line"></span><br><span class="line">Anyway, the following patch seems to make the load average much more</span><br><span class="line">consistent WRT the subjective speed of the system. And, most important, the load is still zero when nobody is doing anything. ;-)</span><br><span class="line"></span><br><span class="line">--- kernel&#x2F;sched.c.orig Fri Oct 29 10:31:11 1993</span><br><span class="line">+++ kernel&#x2F;sched.c  Fri Oct 29 10:32:51 1993</span><br><span class="line">@@ -414,7 +414,9 @@</span><br><span class="line">    unsigned long nr &#x3D; 0;</span><br><span class="line"></span><br><span class="line">    for(p &#x3D; &amp;LAST_TASK; p &gt; &amp;FIRST_TASK; —p)</span><br><span class="line">-       if (*p &amp;&amp; (*p)-&gt;state &#x3D;&#x3D; TASK_RUNNING)</span><br><span class="line">+       if (*p &amp;&amp; ((*p)-&gt;state &#x3D;&#x3D; TASK_RUNNING) ||</span><br><span class="line">+                  (*p)-&gt;state &#x3D;&#x3D; TASK_UNINTERRUPTIBLE) ||</span><br><span class="line">+                  (*p)-&gt;state &#x3D;&#x3D; TASK_SWAPPING))</span><br><span class="line">            nr +&#x3D; FIXED_1;</span><br><span class="line">    return nr;</span><br><span class="line"> &#125;</span><br><span class="line">—</span><br><span class="line">Matthias Urlichs        \ XLink-POP N|rnberg   | EMail: urlichs@smurf.sub.org</span><br><span class="line">Schleiermacherstra_e 12  \  Unix+Linux+Mac     | Phone: …please use email.</span><br><span class="line">90491 N|rnberg (Germany)  \   Consulting+Networking+Programming+etc’ing      42</span><br></pre></td></tr></table></figure>
+
+<p>看来在 1993 年以前，Linux 的平均负载也只是反映 runnable 状态的进程。但一个叫 Matthias Urlichs 的人觉得，那些在等待 swap 完成或等待 IO 完成的进程，它们也在消耗资源，系统也正在为它们服务；所以系统的平均负载也应该考虑这些情况，所以他把进程 state 属性为 TASK_UNINTERRUPTIBLE 和 TASK_SWAPPING 的进程也纳入系统平均负载的计算。</p>
+<p>当年 Urlichs 是这样想的，那 Gregg 考古发现这段 email 后，于 2017 年发了一封 email 去问 Urlichs：过了 24 年了，你如何评价自己当年对 load average 的修改？Matthias Urlichs 很快回复说：</p>
+<blockquote>
+<p>The point of “load average” is to arrive at a number relating how busy the system is from a human point of view. TASK_UNINTERRUPTIBLE means (meant?) that the process is waiting for something like a disk read which contributes to system load. A heavily disk-bound system might be extremely sluggish but only have a TASK_RUNNING average of 0.1, which doesn’t help anybody.</p>
+</blockquote>
+<p>这段话清楚明了，要让 load average 直观全面地反应出系统的负载情况，就要让它<strong>既反应出 CPU 的负载情况，又要反应出磁盘的负载情况</strong>。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>看了《Linux Load Averages: Solving the Mystery》这篇好文，再结合我之前对系统平均负载的理解，可以得出以下总结：</p>
+<ul>
+<li>load average 能够直观地反映出系统的负载情况，但它是一个相对值</li>
+<li>究竟 load average 高不高，不能单纯考虑 CPU 核心数，<strong>并不是</strong>说若 CPU 单核， load average 大于 1 就高；若 CPU 有 2 个核，load average 大于 2 就高</li>
+<li>最好一直监控着 load average 的变化情况，若系统一切正常时的 load average 为 x，某些时刻发现 load average 升到数倍 x，就很可能负载过高了</li>
+<li>当 load average 真的过大时，究竟是 CPU 负载过高，还是磁盘负载过高，还要结合别的工具进行分析</li>
+</ul>
+<hr>
+<p>参考资料：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="http://www.brendangregg.com/blog/2017-08-08/linux-load-averages.html">《Linux Load Averages: Solving the Mystery》</a></li>
+<li>《Linux/UNIX 系统编程手册》22.3</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/tags/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" rel="tag"># 操作系统</a>
+              <a href="/tags/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/" rel="tag"># 性能分析</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/12/16/static_bindings/" rel="prev" title="PHP 后期静态绑定">
+                  <i class="fa fa-chevron-left"></i> PHP 后期静态绑定
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2019/12/21/cache_control/" rel="next" title="浏览器如何处理 HTTP 的 Cache-Control 首部">
+                  浏览器如何处理 HTTP 的 Cache-Control 首部 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+      
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李剑扬</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
