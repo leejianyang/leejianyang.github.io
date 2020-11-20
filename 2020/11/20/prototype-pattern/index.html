@@ -24,29 +24,33 @@
     var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
   </script>
 
-  <meta property="og:type" content="website">
-<meta property="og:title" content="LEE&#39;s Blog">
-<meta property="og:url" content="https://blog.leejianyang.me/page/4/index.html">
+  <meta name="description" content="本文是设计模式系列文章之一的「原型模式」。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【设计模式】原型模式">
+<meta property="og:url" content="https://blog.leejianyang.me/2020/11/20/prototype-pattern/index.html">
 <meta property="og:site_name" content="LEE&#39;s Blog">
+<meta property="og:description" content="本文是设计模式系列文章之一的「原型模式」。">
 <meta property="og:locale">
+<meta property="article:published_time" content="2020-11-20T08:25:23.000Z">
 <meta property="article:author" content="李剑扬">
+<meta property="article:tag" content="设计模式">
 <meta name="twitter:card" content="summary">
 
 
-<link rel="canonical" href="https://blog.leejianyang.me/page/4/">
+<link rel="canonical" href="https://blog.leejianyang.me/2020/11/20/prototype-pattern/">
 
 
 <script class="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'zh'
   };
 </script>
 
-  <title>LEE's Blog</title>
+  <title>【设计模式】原型模式 | LEE's Blog</title>
   
 
 
@@ -151,7 +155,7 @@
 
   <aside class="sidebar">
 
-    <div class="sidebar-inner sidebar-overview-active">
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
       <ul class="sidebar-nav">
         <li class="sidebar-nav-toc">
           Table of Contents
@@ -164,6 +168,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <section class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8E%9F%E5%9E%8B%E6%A8%A1%E5%BC%8F%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="nav-number">1.</span> <span class="nav-text">原型模式的实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E5%8E%9F%E5%9E%8B%E7%9A%84%E7%BC%96%E7%A8%8B%E8%8C%83%E5%BC%8F"><span class="nav-number">2.</span> <span class="nav-text">基于原型的编程范式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
         </section>
         <!--/noindex-->
 
@@ -215,11 +220,12 @@
 </noscript>
 
 
-    <div class="main-inner index posts-expand">
+    <div class="main-inner post posts-expand">
       
 
       
-    
+
+  
 
 
 <div class="post-block">
@@ -227,7 +233,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
-    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/2015/08/03/most-diabolical-python-antipattern/">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/2020/11/20/prototype-pattern/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -239,9 +245,9 @@
       <meta itemprop="name" content="LEE's Blog">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2015/08/03/most-diabolical-python-antipattern/" class="post-title-link" itemprop="url">最恶劣的 Python 反模式</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          【设计模式】原型模式
+        </h1>
 
         <div class="post-meta-container">
           <div class="post-meta">
@@ -251,7 +257,7 @@
       </span>
       <span class="post-meta-item-text">Posted on</span>
 
-      <time title="Created: 2015-08-03 21:17:58" itemprop="dateCreated datePublished" datetime="2015-08-03T21:17:58+08:00">2015-08-03</time>
+      <time title="Created: 2020-11-20 16:25:23" itemprop="dateCreated datePublished" datetime="2020-11-20T16:25:23+08:00">2020-11-20</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -273,16 +279,20 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <p>本文源于 Aaron Maxwell 的<a target="_blank" rel="noopener" href="https://realpython.com/blog/python/the-most-diabolical-python-antipattern/">《The Most Diabolical Python Antipattern》</a>，原文作者指出的最 Diabolical 的 Python 反模式是关于异常捕获方面的一个很糟糕的写法。我大胆猜测，这种写法应该比较常见。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2015/08/03/most-diabolical-python-antipattern/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
+        <p>本文是设计模式系列文章之一的「原型模式」。</p>
+<a id="more"></a>
+
+<p>原型模式是利用已经存在的对象复制一个新的对象，而不是直接调用类的构造函数来创建新的对象。</p>
+<h2 id="原型模式的实现"><a href="#原型模式的实现" class="headerlink" title="原型模式的实现"></a>原型模式的实现</h2><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">interface</span> <span class="title">Prototype</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">clone</span>(<span class="params"></span>)</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">A</span> <span class="keyword">implements</span> <span class="title">Prototype</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="comment">// 这里有一大堆代码要执行</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">clone</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable">$obj</span> = <span class="keyword">clone</span> <span class="keyword">$this</span>;</span><br><span class="line">    	<span class="keyword">return</span> <span class="variable">$obj</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上的代码中 A 类就应用了原型模式。使用者就可以不通过构造函数进行对象复制：</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"></span><br><span class="line"><span class="variable">$a1</span> = <span class="keyword">new</span> A();</span><br><span class="line"><span class="variable">$a2</span> = <span class="variable">$a</span>-&gt;clone();</span><br></pre></td></tr></table></figure>
+
+<p>从上面的示例代码来看，原型模式是非常简单的。但是值得注意的是，像以上的方式只是实现了对象的浅拷贝。有些时候只需要浅拷贝即可，但有些时候需要进行深拷贝（deep copy）。因为有些场景不同的对象可以共同拥有相同的引用对象属性，有些场景则不行，所以要具体的场景具体分析，这超出了原型模式的范畴，因为设计模式只是提供一种思想和代码的基本实现框架。</p>
+<p>不同的语言有不同的方式实现深拷贝，例如 PHP 有一个库名叫 <a target="_blank" rel="noopener" href="https://github.com/myclabs/DeepCopy">myclabs/deep-copy</a>。在每一种语言中实现深拷贝都不是一件轻而易举的事，有很多的 corner case 需要注意，必要时直接使用知名的开源库即可。</p>
+<h2 id="基于原型的编程范式"><a href="#基于原型的编程范式" class="headerlink" title="基于原型的编程范式"></a>基于原型的编程范式</h2><p>原型模式这种设计设计模式的背后，是「基于原型」的编程范式。当要创建一个新的对象时，要么通过类的构造函数来创建；要么通过复制已有的对象，或者扩展空对象来创建。JavaScript 的「类」就是以基于原型的方式来实现的。当要使用一个属性或方法的时候，如果在对象自身中找不到，就从它的原型链里面找。这种编程范式意味着既有复用性，又兼备灵活性——可以在对象中灵活地添加属性和方法。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>原型模式背后的设计思想就是基于现有的对象创建新对象。在像 PHP 这种基于类的语言中，这样做的好处主要是当类的构造函数中要做的事情非常复杂的时候，利用原型模式可以省去这个过程。原型模式需要注意的是要区分和理解浅拷贝和深拷贝，当对象的属性中存在引用类型，或者循环引用的时候，要小心处理。</p>
+
     </div>
 
     
@@ -290,100 +300,27 @@
     
 
     <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
+          <div class="post-tags">
+              <a href="/tags/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/" rel="tag"># 设计模式</a>
+          </div>
 
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
-    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/2015/07/22/tornado-asynchronous-mysql/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="李剑扬">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LEE's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2015/07/22/tornado-asynchronous-mysql/" class="post-title-link" itemprop="url">Tornado 中异步非阻塞地使用 MySQL</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">Posted on</span>
-
-      <time title="Created: 2015-07-22 11:02:59" itemprop="dateCreated datePublished" datetime="2015-07-22T11:02:59+08:00">2015-07-22</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">In</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/coding/" itemprop="url" rel="index"><span itemprop="name">coding</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>Tornado 标榜的是 asynchronous 和 non-blocking，然而，很多时候一不小心一不讲究就会把整个 tornado 阻塞住，特别是做 MySQL 操作时。本文简述两种在 tornado 中异步无阻塞地使用 MySQL 的方法。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2015/07/22/tornado-asynchronous-mysql/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
         
-      
-    </div>
 
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/11/20/factory-pattern/" rel="prev" title="【设计模式】工厂模式">
+                  <i class="fa fa-chevron-left"></i> 【设计模式】工厂模式
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
     </footer>
   </article>
 </div>
 
 
 
-
-
-  
-  <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span>
-  </nav>
 
 
 
@@ -470,16 +407,6 @@
   
 
   
-  <script src="//cdn.jsdelivr.net/npm/quicklink@2.0.0/dist/quicklink.umd.js"></script>
-  <script>
-      window.addEventListener('load', () => {
-      quicklink.listen({
-        timeout : 3000,
-        priority: true,
-        ignores : [uri => uri.includes('#'),uri => uri === 'https://blog.leejianyang.me/page/4/',]
-      });
-      });
-  </script>
 
 </body>
 </html>
