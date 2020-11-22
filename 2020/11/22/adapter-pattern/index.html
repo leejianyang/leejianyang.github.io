@@ -24,12 +24,12 @@
     var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
   </script>
 
-  <meta name="description" content="适配器（Adapter）模式是结构型模式中的一种。">
+  <meta name="description" content="本文是设计模式系列文章之一的「适配器模式」。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="【设计模式】适配器模式">
 <meta property="og:url" content="https://blog.leejianyang.me/2020/11/22/adapter-pattern/index.html">
 <meta property="og:site_name" content="LEE&#39;s Blog">
-<meta property="og:description" content="适配器（Adapter）模式是结构型模式中的一种。">
+<meta property="og:description" content="本文是设计模式系列文章之一的「适配器模式」。">
 <meta property="og:locale">
 <meta property="article:published_time" content="2020-11-22T07:55:16.000Z">
 <meta property="article:author" content="李剑扬">
@@ -181,7 +181,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">34</span>
+          <span class="site-state-item-count">35</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -279,7 +279,7 @@
     
     
     <div class="post-body" itemprop="articleBody">
-        <p>适配器（Adapter）模式是结构型模式中的一种。</p>
+        <p>本文是设计模式系列文章之一的「适配器模式」。</p>
 <a id="more"></a>
 
 <h2 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h2><p>应用场景是这样的，已存在一个类 A，程序的某个地方需要接收实现了某个接口的对象，现在想使用类 A 的实例，但 A 没有完全实现该接口，而且又不能直接修改类 A 的源码，或者不想直接修改类 A 的源码。这个时候可以在类 A 的基础上再加上一层适配器。类比生活中的例子，就好像新款的 iPhone 手机的耳机接口变成了 USB-C，但是很多耳机都是 3.5 毫米接口的，要使用这些耳机听歌怎么办？那就加一层转换器，这就是适配器模式背后的思想。</p>
@@ -292,7 +292,7 @@
 <p>某个地方需要接收实现 IBook 接口的对象，而显然 Kindle 类的实例是无法满足的，那么就需要多一个适配器:</p>
 <figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">KindleBookAdapter</span> <span class="keyword">implements</span> <span class="title">IBook</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="variable">$adaptee</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params">Kindle <span class="variable">$adaptee</span></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">$this</span>-&gt;adaptee = <span class="variable">$adaptee</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">getPage</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">$this</span>-&gt;adaptee-&gt;getPage();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">open</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">$this</span>-&gt;adaptee-&gt;unlock();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">turnPage</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="comment">// 基于 Kindle 类的 pressNext 方法实现该方法所需的功能</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>适配器模式还是比较简单的，它背后的思想就是，如果要改变一个类的接口，可以引入一个中间层（中间类），但这个中间层是不改变原有类实现的功能的。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>适配器模式是结构型设计模式的一种。适配器模式还是比较简单的，它背后的思想就是，如果要改变一个类的接口，可以引入一个中间层（中间类），但这个中间层是不改变原有类实现的功能的。</p>
 
     </div>
 
@@ -314,6 +314,9 @@
                 </a>
             </div>
             <div class="post-nav-item">
+                <a href="/2020/11/22/decorator-pattern/" rel="next" title="【设计模式】装饰器模式">
+                  【设计模式】装饰器模式 <i class="fa fa-chevron-right"></i>
+                </a>
             </div>
           </div>
     </footer>
