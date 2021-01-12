@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
+  </script>
+
+  <meta name="description" content="本文主要关于编写并发代码时会遇到的难点。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go语言并发编程笔记（一）：并发编程的难点">
+<meta property="og:url" content="https://blog.leejianyang.me/why-is-concurrency-hard/index.html">
+<meta property="og:site_name" content="LEE&#39;s Blog">
+<meta property="og:description" content="本文主要关于编写并发代码时会遇到的难点。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2021-01-12T02:23:00.000Z">
+<meta property="article:author" content="李剑扬">
+<meta property="article:tag" content="Go语言">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://blog.leejianyang.me/why-is-concurrency-hard/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh'
+  };
+</script>
+
+  <title>Go语言并发编程笔记（一）：并发编程的难点 | LEE's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">LEE's Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <section class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E7%9A%84%E9%9A%BE%E7%82%B9"><span class="nav-number">1.</span> <span class="nav-text">并发编程的难点</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Race-Conditions"><span class="nav-number">1.1.</span> <span class="nav-text">Race Conditions</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8E%9F%E5%AD%90%E6%80%A7"><span class="nav-number">1.2.</span> <span class="nav-text">原子性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%8C%E6%AD%A5%E8%AE%BF%E9%97%AE%E5%86%85%E5%AD%98"><span class="nav-number">1.3.</span> <span class="nav-text">同步访问内存</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%AD%BB%E9%94%81%EF%BC%8C%E6%B4%BB%E9%94%81%E5%8F%8A%E9%A5%A5%E9%A5%BF%E9%97%AE%E9%A2%98"><span class="nav-number">1.4.</span> <span class="nav-text">死锁，活锁及饥饿问题</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%AD%BB%E9%94%81"><span class="nav-number">1.4.1.</span> <span class="nav-text">死锁</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%B4%BB%E9%94%81"><span class="nav-number">1.4.2.</span> <span class="nav-text">活锁</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%A5%A5%E9%A5%BF%E9%97%AE%E9%A2%98"><span class="nav-number">1.4.3.</span> <span class="nav-text">饥饿问题</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E5%B9%B6%E5%8F%91%E5%AE%89%E5%85%A8%E7%9A%84%E4%BA%BA%E4%B8%BA%E5%9B%A0%E7%B4%A0"><span class="nav-number">1.5.</span> <span class="nav-text">实现并发安全的人为因素</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">2.</span> <span class="nav-text">总结</span></a></li></ol></div>
+        </section>
+        <!--/noindex-->
+
+        <section class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">李剑扬</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">38</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">categories</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">39</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </section>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/why-is-concurrency-hard/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="李剑扬">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LEE's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Go语言并发编程笔记（一）：并发编程的难点
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2021-01-12 10:23:00" itemprop="dateCreated datePublished" datetime="2021-01-12T10:23:00+08:00">2021-01-12</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/coding/" itemprop="url" rel="index"><span itemprop="name">coding</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>本文主要关于编写并发代码时会遇到的难点。</p>
+<a id="more"></a>
+
+<h2 id="并发编程的难点"><a href="#并发编程的难点" class="headerlink" title="并发编程的难点"></a>并发编程的难点</h2><h3 id="Race-Conditions"><a href="#Race-Conditions" class="headerlink" title="Race Conditions"></a>Race Conditions</h3><p>Race conditions 是指多个操作并行地发生，但是它们的先后顺序是不确定的。</p>
+<p>举个例子：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> data <span class="keyword">int</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    data++    <span class="comment">// 代码 a</span></span><br><span class="line">&#125;()</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> data == <span class="number">0</span> &#123;    <span class="comment">// 代码 b</span></span><br><span class="line">    fmt.Printf(<span class="string">&quot;the value is %v.\n&quot;</span>, data)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上代码执行的顺序是不确定的。把这段代码运行多次，有时候代码 a 先于代码 b 执行，有时候代码 b 先于代码 a 执行，这意味着每次执行该程序的结果是不确定的。</p>
+<p>在编写并发代码时，必须要意识到 race conditions 的情况，不能预先假定代码一定会按某个顺序来执行。</p>
+<h3 id="原子性"><a href="#原子性" class="headerlink" title="原子性"></a>原子性</h3><p>在并发编程中，原子操作很有用，因为一个操作如果符合原子性，那就意味着这个操作在并发场景下是安全的。但很多的操作都不符合原子性，例如一个很常见的自增语句：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">i++</span><br></pre></td></tr></table></figure>
+<p>骤眼看来，这个操作是原子的，但仔细分析，它包含三个步骤：</p>
+<ul>
+<li>获取 i 的值</li>
+<li>计算 i+1 的值</li>
+<li>更新 i 的值</li>
+</ul>
+<p>这三个步骤单独执行是原子操作，但三个步骤结合起来并不是原子的。</p>
+<p>所以在编写代码时，如果有一系列的操作需要符合原子性，就要使用合适的技术来保证相关操作的原子性。</p>
+<h3 id="同步访问内存"><a href="#同步访问内存" class="headerlink" title="同步访问内存"></a>同步访问内存</h3><p>如果有多个并发的操作要访问同一块内存区域，而且访问操作不符合原子性，那么就可能会造成并发问题。</p>
+<p>例如以下这段代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> data <span class="keyword">int</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    data++</span><br><span class="line">&#125;()</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> data == <span class="number">0</span> &#123;</span><br><span class="line">    fmt.Println(<span class="string">&quot;the value is 0.&quot;</span>)</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    fmt.Println(<span class="string">&quot;the value is %v.\n&quot;</span>, data)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>有两个并行的代码都要对 data 变量进行访问，这就发生了 data race。那就需要一些技术来解决内存的并发访问问题，来个粗暴的解决方案：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> memoryAccess sync.Mutex</span><br><span class="line"><span class="keyword">var</span> value <span class="keyword">int</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    memoryAccess.Lock()</span><br><span class="line">    value++</span><br><span class="line">    memoryAccess.Unlock()</span><br><span class="line">&#125;()</span><br><span class="line"></span><br><span class="line">memoryAccess.Lock()</span><br><span class="line"><span class="keyword">if</span> value == <span class="number">0</span> &#123;</span><br><span class="line">    fmt.Printf(<span class="string">&quot;the value is %v.\n&quot;</span>, value)</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    fmt.Printf(<span class="string">&quot;the value is %v.\n&quot;</span>, value)</span><br><span class="line">&#125;</span><br><span class="line">memoryAccess.Unlock()</span><br></pre></td></tr></table></figure>
+<p>以上的代码只是举一个粗糙的例子，来说明解决 data race 的思路之一就是加锁。</p>
+<p>但是值得注意的是，以上的方案解决了 data race，但依然没有解决 race condition，因为如上文所说的那样，究竟哪部分代码先被执行是不确定的。</p>
+<h3 id="死锁，活锁及饥饿问题"><a href="#死锁，活锁及饥饿问题" class="headerlink" title="死锁，活锁及饥饿问题"></a>死锁，活锁及饥饿问题</h3><p>加锁可以在某些场景下解决以上的并发编程问题，但又可能带来一系列新的问题。</p>
+<h4 id="死锁"><a href="#死锁" class="headerlink" title="死锁"></a>死锁</h4><p>举一个死锁的例子:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> value <span class="keyword">struct</span> &#123;</span><br><span class="line">    mu sync.Mutex</span><br><span class="line">    value <span class="keyword">int</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">printSum := <span class="function"><span class="keyword">func</span><span class="params">(v1, v2 *value)</span></span> &#123;</span><br><span class="line">    <span class="keyword">defer</span> wg.Done()</span><br><span class="line">    v1.mu.Lock()</span><br><span class="line">    <span class="keyword">defer</span> v1.mu.Unlock()</span><br><span class="line"></span><br><span class="line">    time.Sleep(<span class="number">2</span> * time.Second)</span><br><span class="line">    v2.mu.Lock()</span><br><span class="line">    <span class="keyword">defer</span> v2.mu.Unlock()</span><br><span class="line"></span><br><span class="line">    fmt.Printf(<span class="string">&quot;sum=%v\n&quot;</span>, v1.value + v2.value)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> a, b value</span><br><span class="line">wg.Add(<span class="number">2</span>)</span><br><span class="line"><span class="keyword">go</span> printSum(&amp;a, &amp;b)</span><br><span class="line"><span class="keyword">go</span> printSum(&amp;b, &amp;a)</span><br><span class="line">wg.Wait()</span><br></pre></td></tr></table></figure>
+
+<p>以上这段代码还是能比较简单地看出死锁问题，但在复杂的项目中，死锁问题不一定能用肉眼就能发现。</p>
+<h4 id="活锁"><a href="#活锁" class="headerlink" title="活锁"></a>活锁</h4><p>活锁（Livelock）的概念远不如死锁常见，举个活生生的例子：两个人迎面走在一条很窄的路上，两个人都想避让对方，但如果两人都不断地朝着同一侧变换方向避让对方，那么两个人都通不过去。</p>
+<p>举一个活锁的代码例子：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;bytes&quot;</span></span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">    <span class="string">&quot;sync&quot;</span></span><br><span class="line">    <span class="string">&quot;sync/atomic&quot;</span></span><br><span class="line">    <span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    cadence := sync.NewCond(&amp;sync.Mutex&#123;&#125;)</span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">for</span> <span class="keyword">range</span> time.Tick(<span class="number">1</span> * time.Millisecond) &#123;</span><br><span class="line">    	cadence.Broadcast()</span><br><span class="line">    	&#125;</span><br><span class="line">    &#125;()</span><br><span class="line"></span><br><span class="line">    takeStep := <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        cadence.L.Lock()</span><br><span class="line">        cadence.Wait()</span><br><span class="line">        cadence.L.Unlock()</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    tryDir := <span class="function"><span class="keyword">func</span><span class="params">(dirName <span class="keyword">string</span>, dir *<span class="keyword">int32</span>, out *bytes.Buffer)</span> <span class="title">bool</span></span> &#123;</span><br><span class="line">        fmt.Fprintf(out, <span class="string">&quot; %v&quot;</span>, dirName)</span><br><span class="line">        atomic.AddInt32(dir, <span class="number">1</span>)</span><br><span class="line">        takeStep()              </span><br><span class="line">        <span class="keyword">if</span> atomic.LoadInt32(dir) == <span class="number">1</span> &#123;</span><br><span class="line">        	fmt.Fprint(out, <span class="string">&quot;. Success!&quot;</span>)</span><br><span class="line">        	<span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">        &#125;</span><br><span class="line">        takeStep()</span><br><span class="line">        atomic.AddInt32(dir, <span class="number">-1</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">var</span> left, right <span class="keyword">int32</span></span><br><span class="line">    tryLeft := <span class="function"><span class="keyword">func</span><span class="params">(out *bytes.Buffer)</span> <span class="title">bool</span></span> &#123; <span class="keyword">return</span> tryDir(<span class="string">&quot;left&quot;</span>, &amp;left, out) &#125;</span><br><span class="line">    tryRight := <span class="function"><span class="keyword">func</span><span class="params">(out *bytes.Buffer)</span> <span class="title">bool</span></span> &#123; <span class="keyword">return</span> tryDir(<span class="string">&quot;right&quot;</span>, &amp;right, out) &#125;</span><br><span class="line">    walk := <span class="function"><span class="keyword">func</span><span class="params">(walking *sync.WaitGroup, name <span class="keyword">string</span>)</span></span> &#123;</span><br><span class="line">        <span class="keyword">var</span> out bytes.Buffer</span><br><span class="line">        <span class="keyword">defer</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123; fmt.Println(out.String()) &#125;()</span><br><span class="line">        <span class="keyword">defer</span> walking.Done()</span><br><span class="line">        fmt.Fprintf(&amp;out, <span class="string">&quot;%v is trying to scoot:&quot;</span>, name)</span><br><span class="line">        <span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">5</span>; i++ &#123;</span><br><span class="line">        	<span class="keyword">if</span> tryLeft(&amp;out) || tryRight(&amp;out) &#123;</span><br><span class="line">        		<span class="keyword">return</span></span><br><span class="line">        	&#125;</span><br><span class="line">        &#125;</span><br><span class="line">    	fmt.Fprintf(&amp;out, <span class="string">&quot;\n%v tosses her hands up in exasperation!&quot;</span>, name)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">var</span> peopleInHallway sync.WaitGroup</span><br><span class="line">    peopleInHallway.Add(<span class="number">2</span>)</span><br><span class="line">    <span class="keyword">go</span> walk(&amp;peopleInHallway, <span class="string">&quot;Alice&quot;</span>)</span><br><span class="line">    <span class="keyword">go</span> walk(&amp;peopleInHallway, <span class="string">&quot;Barbara&quot;</span>)</span><br><span class="line">    peopleInHallway.Wait()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行这段代码，得到的结果是：</p>
+<blockquote>
+<p>Alice is trying to scoot: left right left right left right left right left right<br>Alice tosses her hands up in exasperation!<br>Barbara is trying to scoot: left right left right left right left right left right<br>Barbara tosses her hands up in exasperation!</p>
+</blockquote>
+<p>在以上这段代码中，双方都尝试主动地避免死锁，但因为双方并没有协调好，导致了双方都没有达成想要的目的。活锁比死锁更难发现。</p>
+<p>活锁是饥饿问题（staravtion）的子集，下面再来看看饥饿问题。</p>
+<h4 id="饥饿问题"><a href="#饥饿问题" class="headerlink" title="饥饿问题"></a>饥饿问题</h4><p>活锁是并发编程中，所有并发的 goroutine 都获取不全自己想要的资源，而饥饿问题则是一部分的 goroutine 受到「不公平对待」。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">    <span class="string">&quot;sync&quot;</span></span><br><span class="line">    <span class="string">&quot;time&quot;</span></span><br><span class="line">    )</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">    <span class="keyword">var</span> sharedLock sync.Mutex</span><br><span class="line">    <span class="keyword">const</span> runtime = <span class="number">1</span> * time.Second</span><br><span class="line"></span><br><span class="line">    greedyWorker := <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        <span class="keyword">defer</span> wg.Done()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">var</span> count <span class="keyword">int</span></span><br><span class="line">        <span class="keyword">for</span> begin := time.Now(); time.Since(begin) &lt;= runtime; &#123;</span><br><span class="line">            sharedLock.Lock()</span><br><span class="line">            time.Sleep(<span class="number">3</span> * time.Nanosecond)</span><br><span class="line">            sharedLock.Unlock()</span><br><span class="line">            count++</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        fmt.Printf(<span class="string">&quot;Greedy worker was able to execute %v work loops\n&quot;</span>, count)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    politeWorker := <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    	<span class="keyword">defer</span> wg.Done()</span><br><span class="line"></span><br><span class="line">    	<span class="keyword">var</span> count <span class="keyword">int</span></span><br><span class="line">    	<span class="keyword">for</span> begin := time.Now(); time.Since(begin) &lt;= runtime; &#123;</span><br><span class="line">            sharedLock.Lock()</span><br><span class="line">            time.Sleep(<span class="number">1</span> * time.Nanosecond)</span><br><span class="line">            sharedLock.Unlock()</span><br><span class="line"></span><br><span class="line">            sharedLock.Lock()</span><br><span class="line">            time.Sleep(<span class="number">1</span> * time.Nanosecond)</span><br><span class="line">            sharedLock.Unlock()</span><br><span class="line"></span><br><span class="line">            sharedLock.Lock()</span><br><span class="line">            time.Sleep(<span class="number">1</span> * time.Nanosecond)</span><br><span class="line">            sharedLock.Unlock()</span><br><span class="line"></span><br><span class="line">            count++</span><br><span class="line">    	&#125;</span><br><span class="line"></span><br><span class="line">    	fmt.Printf(<span class="string">&quot;Polite worker was able to execute %v work loops.\n&quot;</span>, count)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    wg.Add(<span class="number">2</span>)</span><br><span class="line">    <span class="keyword">go</span> greedyWorker()</span><br><span class="line">    <span class="keyword">go</span> politeWorker()</span><br><span class="line"></span><br><span class="line">    wg.Wait()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>greedyWorker 由于更「野蛮」地占据着锁，所以它执行循环的次数会比 politeWorker 更多。这是由于程序自身的写法问题而导致不同代码段抢占到的资源不均衡。</p>
+<p>还需要注意的是，除了 Go 代码以外，别的对资源的使用场景：例如 CPU、内存、文件句柄、数据库连接等等，一切可共享的资源都可能发生饥饿问题。</p>
+<h3 id="实现并发安全的人为因素"><a href="#实现并发安全的人为因素" class="headerlink" title="实现并发安全的人为因素"></a>实现并发安全的人为因素</h3><p>人的因素也不能忽视，每一行代码都是由人写出来的。程序员在写并发代码时，有很多需要考虑的地方。例如当你编写了一个库函数之后，如何让调用方意识到要注意并发问题？如果让自己写的并发代码更易用更易修改？到底要在代码结构的哪个层级中处理并发问题？这些都是权衡取舍的艺术。</p>
+<p>再例如，要调用一段别人写的代码，怎么处理并发编程问题？例如使用别人提供的函数，其签名如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// CalculatePi calculates digits of Pi between the begin and end place.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">CalculatePi</span><span class="params">(begin, end <span class="keyword">int64</span>, pi *Pi)</span></span></span><br></pre></td></tr></table></figure>
+<p>那不看函数体的具体实现，可能就会疑惑，究竟这个函数实现时是不是已经利用了并发技术，一大批量的计算需要调用方一次性调用 CalculatePi 函数还是并性地小批次地调用该函数？传了 Pi 指针进去，意味着可能并发地访问该内存空间，谁来对它进行保护？</p>
+<p>在编写并发代码时，对程序员的代码编写能力有更高的要求，既需要设计时的权衡取舍，选择合适的数据结构，还需要定义优雅的接口。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>在编写并发代码的时候，首先要意识到的第一个问题是，并发运行的多个代码片段的执行顺序是不确定的；正是由于执行顺序的不确定性，才需要确保一部分操作的原子性；特别是操作一些临界资源时，需要应用一定的技术来实现并发安全，例如是加锁；但加锁的时候要注意死锁以及活锁问题。另外，由于并发的程序往往是抢占式地执行的，要注意资源分配的均衡问题。</p>
+<p>本文只涉及到并发难题的介绍，没有深入展开如何应对这些难题，因为在并发编程中，注意到这些可能出现的问题是最基础的，只有在有情景意识的前提下才能灵活应用具体的解决方案。在后面的文章里面再深入展开在 Go 语言中，实现并发安全的技术和套路。</p>
+<hr>
+<p>参考资料：</p>
+<ul>
+<li>《Goncurrency in Go》第一章，作者 Katherine Cox-Buday</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Go%E8%AF%AD%E8%A8%80/" rel="tag"># Go语言</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/observer-pattern/" rel="prev" title="【设计模式】观察者模式">
+                  <i class="fa fa-chevron-left"></i> 【设计模式】观察者模式
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+      
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李剑扬</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
