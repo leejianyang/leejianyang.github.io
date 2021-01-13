@@ -160,8 +160,8 @@ func main() {
         atomic.AddInt32(dir, 1)
         takeStep()              
         if atomic.LoadInt32(dir) == 1 {
-        	fmt.Fprint(out, ". Success!")
-        	return true
+            fmt.Fprint(out, ". Success!")
+            return true
         }
         takeStep()
         atomic.AddInt32(dir, -1)
@@ -177,8 +177,8 @@ func main() {
         defer walking.Done()
         fmt.Fprintf(&out, "%v is trying to scoot:", name)
         for i := 0; i < 5; i++ {
-        	if tryLeft(&out) || tryRight(&out) {
-        		return
+            if tryLeft(&out) || tryRight(&out) {
+            	return
         	}
         }
     	fmt.Fprintf(&out, "\n%v tosses her hands up in exasperation!", name)
