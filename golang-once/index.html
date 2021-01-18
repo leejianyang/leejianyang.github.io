@@ -24,12 +24,12 @@
     var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
   </script>
 
-  <meta name="description" content="本文介绍 Go 语言 sync 包中的 Once 的用法。 适用场景在并发编程中，要确保某些行为在整个进程的生命周期里面只发生一次，就可以使用 sync 包中提供的 Once 结构。 Once 的用法Once 只提供了一个接口： 1func (o *Once) Do(f func())  传递给 Do 的是一个无参数无返回值的函数。 举个使用的例子： 12345678910111213141516">
+  <meta name="description" content="本文介绍 Go 语言 sync 包中的 Once 的用法。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Go语言并发编程笔记（七）：Once 的使用">
-<meta property="og:url" content="https://blog.leejianyang.me/once/index.html">
+<meta property="og:url" content="https://blog.leejianyang.me/golang-once/index.html">
 <meta property="og:site_name" content="LEE&#39;s Blog">
-<meta property="og:description" content="本文介绍 Go 语言 sync 包中的 Once 的用法。 适用场景在并发编程中，要确保某些行为在整个进程的生命周期里面只发生一次，就可以使用 sync 包中提供的 Once 结构。 Once 的用法Once 只提供了一个接口： 1func (o *Once) Do(f func())  传递给 Do 的是一个无参数无返回值的函数。 举个使用的例子： 12345678910111213141516">
+<meta property="og:description" content="本文介绍 Go 语言 sync 包中的 Once 的用法。">
 <meta property="og:locale">
 <meta property="article:published_time" content="2021-01-17T07:11:14.000Z">
 <meta property="article:author" content="李剑扬">
@@ -37,7 +37,7 @@
 <meta name="twitter:card" content="summary">
 
 
-<link rel="canonical" href="https://blog.leejianyang.me/once/">
+<link rel="canonical" href="https://blog.leejianyang.me/golang-once/">
 
 
 <script class="page-configurations">
@@ -233,7 +233,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
-    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/once/">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/golang-once/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -280,6 +280,8 @@
     
     <div class="post-body" itemprop="articleBody">
         <p>本文介绍 Go 语言 sync 包中的 Once 的用法。</p>
+<a id="more"></a>
+
 <h2 id="适用场景"><a href="#适用场景" class="headerlink" title="适用场景"></a>适用场景</h2><p>在并发编程中，要确保某些行为在整个进程的生命周期里面只发生一次，就可以使用 sync 包中提供的 Once 结构。</p>
 <h2 id="Once-的用法"><a href="#Once-的用法" class="headerlink" title="Once 的用法"></a>Once 的用法</h2><p>Once 只提供了一个接口：</p>
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(o *Once)</span> <span class="title">Do</span><span class="params">(f <span class="keyword">func</span>()</span>)</span></span><br></pre></td></tr></table></figure>
