@@ -176,7 +176,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">44</span>
+          <span class="site-state-item-count">45</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -219,6 +219,86 @@
       
 
       
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/uninterruptible_process/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="李剑扬">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LEE's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/uninterruptible_process/" class="post-title-link" itemprop="url">关于 Linux 的平均负载和进程的不可中断状态</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2019-12-19 00:00:00" itemprop="dateCreated datePublished" datetime="2019-12-19T00:00:00+08:00">2019-12-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/coding/" itemprop="url" rel="index"><span itemprop="name">coding</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <p>在 uptime 命令的 man 信息中，对系统平均负载给出的定义是这样的：「System load averages is the average number of processes that are either in a runnable or uninterruptable state」。平均负载当然是一个直观反映系统当前负载程度的指标，有些人会误以为这个数值越高，就表明 CPU 的使用率越高。那究竟什么是进程的 uninterruptable 状态？为什么 load averages 既包括runnable 状态的进程，又要包括 uninterruptable 状态的进程？</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/uninterruptible_process/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
     
 
 
@@ -917,77 +997,6 @@
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/distributed-locks-with-redis/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
-    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/salted-password-hashing/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="李剑扬">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LEE's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/salted-password-hashing/" class="post-title-link" itemprop="url">《Salted Password Hashing - Doing it Right》笔记</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">Posted on</span>
-
-      <time title="Created: 2016-03-31 15:40:03" itemprop="dateCreated datePublished" datetime="2016-03-31T15:40:03+08:00">2016-03-31</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>看了一篇名为<a target="_blank" rel="noopener" href="https://crackstation.net/hashing-security.htm">《Salted Password Hashing - Doing it Right》</a>的文章，讲述的是用加盐 hash 方式保存密码方面的内容。包括：什么是 password hashing，如何破解 hash，如何正确地加「盐」，如何正确地进行 hash 等内容。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/salted-password-hashing/#more" rel="contents">
                 Read more &raquo;
               </a>
             </div>
