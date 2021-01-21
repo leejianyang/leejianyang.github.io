@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
+  </script>
+
+  <meta name="description" content="本文关于 Go 语言中一个独特的数据结构——Channel，Channel 是 Go 语言并发编程的利器。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go语言并发编程笔记（九）：Channel 的使用">
+<meta property="og:url" content="https://blog.leejianyang.me/golang-channel/index.html">
+<meta property="og:site_name" content="LEE&#39;s Blog">
+<meta property="og:description" content="本文关于 Go 语言中一个独特的数据结构——Channel，Channel 是 Go 语言并发编程的利器。">
+<meta property="og:locale">
+<meta property="og:image" content="https://blog.leejianyang.me/images/golang-channel/01.png">
+<meta property="article:published_time" content="2021-01-19T02:05:00.000Z">
+<meta property="article:author" content="李剑扬">
+<meta property="article:tag" content="Go语言">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.leejianyang.me/images/golang-channel/01.png">
+
+
+<link rel="canonical" href="https://blog.leejianyang.me/golang-channel/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh'
+  };
+</script>
+
+  <title>Go语言并发编程笔记（九）：Channel 的使用 | LEE's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">LEE's Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <section class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Channel-%E7%9A%84%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text">Channel 的使用场景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8-Channel"><span class="nav-number">2.</span> <span class="nav-text">如何使用 Channel</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A3%B0%E6%98%8E%E5%92%8C%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="nav-number">2.1.</span> <span class="nav-text">声明和初始化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%9A%E8%BF%87-channel-%E4%BC%A0%E9%80%81%E6%95%B0%E6%8D%AE"><span class="nav-number">2.2.</span> <span class="nav-text">通过 channel 传送数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B3%E9%97%AD-channel"><span class="nav-number">2.3.</span> <span class="nav-text">关闭 channel</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8C%87%E5%AE%9A-channel-%E7%9A%84%E5%AE%B9%E9%87%8F"><span class="nav-number">2.4.</span> <span class="nav-text">指定 channel 的容量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8D%95%E5%90%91-channel"><span class="nav-number">2.5.</span> <span class="nav-text">单向 channel</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%B9%E4%B8%8D%E5%90%8C%E7%8A%B6%E6%80%81%E7%9A%84-channel-%E8%BF%9B%E8%A1%8C%E6%93%8D%E4%BD%9C%E4%BC%9A%E5%8F%91%E7%94%9F%E4%BB%80%E4%B9%88%E4%BA%8B"><span class="nav-number">2.6.</span> <span class="nav-text">对不同状态的 channel 进行操作会发生什么事</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8-channel-%E6%97%B6%E7%9A%84%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="nav-number">3.</span> <span class="nav-text">使用 channel 时的注意事项</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B0%BD%E9%87%8F%E8%80%83%E8%99%91%E6%8A%8A-channel-%E5%B0%81%E8%A3%85%E8%B5%B7%E6%9D%A5"><span class="nav-number">3.1.</span> <span class="nav-text">尽量考虑把 channel 封装起来</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%A0%E5%85%A5-channel-%E7%9A%84%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A4%8D%E5%88%B6%E4%BC%A0%E9%80%92"><span class="nav-number">3.2.</span> <span class="nav-text">传入 channel 的数据是复制传递</span></a></li></ol></li></ol></div>
+        </section>
+        <!--/noindex-->
+
+        <section class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">李剑扬</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">46</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">categories</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">39</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </section>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/golang-channel/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="李剑扬">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LEE's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Go语言并发编程笔记（九）：Channel 的使用
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2021-01-19 10:05:00" itemprop="dateCreated datePublished" datetime="2021-01-19T10:05:00+08:00">2021-01-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/coding/" itemprop="url" rel="index"><span itemprop="name">coding</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>本文关于 Go 语言中一个独特的数据结构——Channel，Channel 是 Go 语言并发编程的利器。</p>
+<a id="more"></a>
+
+<h2 id="Channel-的使用场景"><a href="#Channel-的使用场景" class="headerlink" title="Channel 的使用场景"></a>Channel 的使用场景</h2><p>Channel 用于在不同 goroutine 之间交流数据，可以说是搭建在不同 goroutine 之间的管道。<br>使用 Channel 符合 Go 语言的理念：「Don’t communicate by sharing memory, share memory by communicating.」</p>
+<h2 id="如何使用-Channel"><a href="#如何使用-Channel" class="headerlink" title="如何使用 Channel"></a>如何使用 Channel</h2><h3 id="声明和初始化"><a href="#声明和初始化" class="headerlink" title="声明和初始化"></a>声明和初始化</h3><p>使用 channel 之间首先要进行声明和初始化：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> dataStream <span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">dataStream = <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br></pre></td></tr></table></figure>
+<p>以这种方式声明的话，可以往管道里面写入任何类型的数据。<br>也可以限制写入特定类型的数据：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">intStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br><span class="line">stringStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">string</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="通过-channel-传送数据"><a href="#通过-channel-传送数据" class="headerlink" title="通过 channel 传送数据"></a>通过 channel 传送数据</h3><p>利用 channel 进行数据交互的示例：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">stringStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">string</span>)</span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    stringStream &lt;- <span class="string">&quot;Hello channels!&quot;</span></span><br><span class="line">&#125;()</span><br><span class="line">fmt.Println(&lt;-stringStream)</span><br></pre></td></tr></table></figure>
+<p>注意一点是，从 channel 中读取数据是阻塞式读取的，所以以上的程序中主 goroutine 不需要使用 WaitGroup 等待别的 goroutine 结束。</p>
+<h3 id="关闭-channel"><a href="#关闭-channel" class="headerlink" title="关闭 channel"></a>关闭 channel</h3><p>可以对 channel 进行关闭操作：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">intStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br><span class="line"><span class="built_in">close</span>(intStream)</span><br><span class="line">integer, ok := &lt;- intStream</span><br><span class="line">fmt.Printf(<span class="string">&quot;(%v): %v&quot;</span>, ok, integer)</span><br><span class="line">fmt.Printf(<span class="string">&quot;(%v): %v&quot;</span>, ok, integer)</span><br></pre></td></tr></table></figure>
+<p>运行以上程序会输出:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">(false): 0</span><br><span class="line">(false): 0</span><br></pre></td></tr></table></figure>
+<p>从这个例子中可以看出（1）从 channel 中读取数据时，有第二个返回值，它是一个布尔类型，表示管道是否被关闭；（2）可以对已关闭的 channel 进行读取，并且可以读取多次。</p>
+<p>如果 channel 的生产方对 channel 进行关闭，那么 channel 的消费方可以使用一个 for 循环：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">intStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">defer</span> <span class="built_in">close</span>(intStream)</span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">1</span>; i &lt;= <span class="number">5</span>; i++ &#123;</span><br><span class="line">        intStream &lt;- i</span><br><span class="line">    &#125;</span><br><span class="line">&#125;()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> val := <span class="keyword">range</span> intStream &#123;</span><br><span class="line">    fmt.Printf(<span class="string">&quot;%v &quot;</span>, $val)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以改造一下以上的例子，一个 goroutine 生产数据，两个 goroutine 消费数据：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">intStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br><span class="line"></span><br><span class="line">wg.Add(<span class="number">3</span>)</span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">defer</span> <span class="built_in">close</span>(intStream)</span><br><span class="line">    <span class="keyword">defer</span> wg.Done()</span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">1</span>; i &lt;= <span class="number">30</span>; i++ &#123;</span><br><span class="line">        intStream &lt;- i</span><br><span class="line">    &#125;</span><br><span class="line">&#125;()</span><br><span class="line"></span><br><span class="line">readFromStream := <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">defer</span> wg.Done()</span><br><span class="line">    <span class="keyword">for</span> val := <span class="keyword">range</span> intStream &#123;</span><br><span class="line">        fmt.Printf(<span class="string">&quot;%v &quot;</span>, val)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">go</span> readFromStream()</span><br><span class="line"><span class="keyword">go</span> readFromStream()</span><br><span class="line"></span><br><span class="line">wg.Wait()</span><br></pre></td></tr></table></figure>
+
+<h3 id="指定-channel-的容量"><a href="#指定-channel-的容量" class="headerlink" title="指定 channel 的容量"></a>指定 channel 的容量</h3><p>如果不指定 channel 的容量，例如上文那样子：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">intStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br></pre></td></tr></table></figure>
+<p>此时，初始化的 channel 是一个「unbuffered channel」。数据的生产方要等待消费方把数据从 channel 取走后，写入才会结束，不然会一直被阻塞。</p>
+<p>在初始化时，第二个参数指定 channel 的容量：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">intStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>, <span class="number">5</span>)</span><br></pre></td></tr></table></figure>
+<p>如果 channel 的容量未被占满，那么生产方写入时会马上返回；如果 channel 被填满，生产者往 channel 写数据也会阻塞，所以要给 channel 指定一个合适的容量。</p>
+<h3 id="单向-channel"><a href="#单向-channel" class="headerlink" title="单向 channel"></a>单向 channel</h3><p>可以声明一个单向 channel：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 只读 channel</span></span><br><span class="line"><span class="keyword">var</span> readOnlyChan &lt;-<span class="keyword">chan</span> <span class="keyword">int</span></span><br><span class="line"><span class="comment">// 只写 channel</span></span><br><span class="line"><span class="keyword">var</span> writeOnlyChan <span class="keyword">chan</span>&lt;- <span class="keyword">int</span></span><br></pre></td></tr></table></figure>
+
+<p>单向 channel 的意义是防止对 channel 误读或误写。例如将上文出现过的例子改一改，应用上单向 channel：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">intStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br><span class="line"></span><br><span class="line">wg.Add(<span class="number">3</span>)</span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(ch <span class="keyword">chan</span>&lt;- <span class="keyword">int</span>)</span></span> &#123;</span><br><span class="line">    <span class="keyword">defer</span> <span class="built_in">close</span>(ch)</span><br><span class="line">    <span class="keyword">defer</span> wg.Done()</span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">1</span>; i &lt;= <span class="number">30</span>; i++ &#123;</span><br><span class="line">        ch &lt;- i</span><br><span class="line">    &#125;</span><br><span class="line">&#125;(intStream)</span><br><span class="line"></span><br><span class="line">readFromStream := <span class="function"><span class="keyword">func</span><span class="params">(ch &lt;-<span class="keyword">chan</span> <span class="keyword">int</span>)</span></span> &#123;</span><br><span class="line">    <span class="keyword">defer</span> wg.Done()</span><br><span class="line">    <span class="keyword">for</span> val := <span class="keyword">range</span> ch &#123;</span><br><span class="line">        fmt.Printf(<span class="string">&quot;%v &quot;</span>, val)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">go</span> readFromStream(intStream)</span><br><span class="line"><span class="keyword">go</span> readFromStream(intStream)</span><br><span class="line"></span><br><span class="line">wg.Wait()</span><br></pre></td></tr></table></figure>
+
+<h3 id="对不同状态的-channel-进行操作会发生什么事"><a href="#对不同状态的-channel-进行操作会发生什么事" class="headerlink" title="对不同状态的 channel 进行操作会发生什么事"></a>对不同状态的 channel 进行操作会发生什么事</h3><p><img src="/images/golang-channel/01.png"></p>
+<h2 id="使用-channel-时的注意事项"><a href="#使用-channel-时的注意事项" class="headerlink" title="使用 channel 时的注意事项"></a>使用 channel 时的注意事项</h2><h3 id="尽量考虑把-channel-封装起来"><a href="#尽量考虑把-channel-封装起来" class="headerlink" title="尽量考虑把 channel 封装起来"></a>尽量考虑把 channel 封装起来</h3><p>从上文的图可以发现，对 channel 的误用可能导致死锁或 panic，所以有必要地对 channel 进行一些封装以避免发生意外。</p>
+<p>先引入一个概念：ownership，或者称为「channel 的主人」，意思就是找一个单一的 goroutine 做以下的事情：</p>
+<ul>
+<li>初始化 channel</li>
+<li>进行写操作，或者传递给别的 goroutine 进行写操作</li>
+<li>关闭 channel</li>
+<li>将以上三种行为封装起来，并暴露出「只读 channel」给别的 goroutine 使用</li>
+</ul>
+<p>举一个简单的例子:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">chanOwner := <span class="function"><span class="keyword">func</span><span class="params">()</span> &lt;-<span class="title">chan</span> <span class="title">int</span></span> &#123;</span><br><span class="line">    <span class="comment">// channel 的主人负责初始化 channel</span></span><br><span class="line">    resultStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>, <span class="number">5</span>)</span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        <span class="comment">// 这里不是由 channel 的主人亲自进行关闭，但由于这里是主人自身的匿名函数，只有一个生产者，问题不大</span></span><br><span class="line">        <span class="keyword">defer</span> <span class="built_in">close</span>(resultStream)</span><br><span class="line">        <span class="keyword">for</span> i := <span class="number">0</span>; i &lt;= <span class="number">5</span>; i++ &#123;</span><br><span class="line">            resultStream &lt;- i</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;() <span class="comment">// 将 channel 的写入交给别的 goroutine</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// channel 的主人暴露一个只读的 channel 给外界消费</span></span><br><span class="line">    <span class="keyword">return</span> resultStream</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">resultStream := chanOwner()</span><br><span class="line"><span class="keyword">for</span> result := <span class="keyword">range</span> resultStream &#123;</span><br><span class="line">    fmt.Printf(<span class="string">&quot;Received: %d\n&quot;</span>, result)</span><br><span class="line">&#125;</span><br><span class="line">fmt.Println(<span class="string">&quot;Done receiving!&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>这样的做法可以避免很多麻烦：</p>
+<ul>
+<li>避免有 goroutine 往一个未初始化的 channel 写数据</li>
+<li>避免关闭一个未初始化的 channel</li>
+<li>避免往一个已关闭的 channel 写数据</li>
+<li>避免对一个 goroutine 进行多次关闭</li>
+<li>防止对 channel 误写数据</li>
+</ul>
+<h3 id="传入-channel-的数据是复制传递"><a href="#传入-channel-的数据是复制传递" class="headerlink" title="传入 channel 的数据是复制传递"></a>传入 channel 的数据是复制传递</h3><p>举个例子:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">    <span class="string">&quot;sync&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> person <span class="keyword">struct</span> &#123;</span><br><span class="line">    name <span class="keyword">string</span></span><br><span class="line">    age <span class="keyword">int</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">    ch := <span class="built_in">make</span>(<span class="keyword">chan</span> person, <span class="number">5</span>)</span><br><span class="line">    p := person&#123;<span class="string">&quot;Tom&quot;</span>, <span class="number">16</span>&#125;</span><br><span class="line">    p.name = <span class="string">&quot;Tom&quot;</span></span><br><span class="line">    p.age = <span class="number">16</span></span><br><span class="line">    ch &lt;- p</span><br><span class="line"></span><br><span class="line">    wg.Add(<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(c <span class="keyword">chan</span> person, w *sync.WaitGroup)</span></span> &#123;</span><br><span class="line">        <span class="keyword">defer</span> w.Done()</span><br><span class="line"></span><br><span class="line">        p := &lt;- c</span><br><span class="line">        p.name = <span class="string">&quot;Jack&quot;</span></span><br><span class="line">        p.age = <span class="number">36</span></span><br><span class="line">    &#125;(ch, &amp;wg)</span><br><span class="line"></span><br><span class="line">    wg.Wait()</span><br><span class="line">    fmt.Printf(<span class="string">&quot;%v\n&quot;</span>, p.name)</span><br><span class="line">    fmt.Printf(<span class="string">&quot;%v\n&quot;</span>, p.age)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行以上程序，输出的是：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Tom</span><br><span class="line">16</span><br></pre></td></tr></table></figure>
+<p>从这个例子就可以看出，数据是以复制的方式写入 channel 的。因为 channel 本身的理念就是要避免在 goroutine 之间共享使用相同的数据内存。</p>
+<hr>
+<p>参考资料：</p>
+<ul>
+<li>《Goncurrency in Go》第三章，作者 Katherine Cox-Buday</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Go%E8%AF%AD%E8%A8%80/" rel="tag"># Go语言</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/golang-pool/" rel="prev" title="Go语言并发编程笔记（八）：Pool 的使用">
+                  <i class="fa fa-chevron-left"></i> Go语言并发编程笔记（八）：Pool 的使用
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+      
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李剑扬</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
