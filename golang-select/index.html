@@ -24,20 +24,20 @@
     var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
   </script>
 
-  <meta name="description" content="Go 语言的 sync 包中提供的 WaitGroup 并发原语，是编排 goroutine 的有用工具。">
+  <meta name="description" content="如果要同时与多个 channel 发生交互，可以借助 select 语句。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Go语言并发编程笔记（四）：WaitGroup 的使用">
-<meta property="og:url" content="https://blog.leejianyang.me/golang-waitgroup/index.html">
+<meta property="og:title" content="Go语言并发编程笔记（十）：Select 的使用">
+<meta property="og:url" content="https://blog.leejianyang.me/golang-select/index.html">
 <meta property="og:site_name" content="LEE&#39;s Blog">
-<meta property="og:description" content="Go 语言的 sync 包中提供的 WaitGroup 并发原语，是编排 goroutine 的有用工具。">
+<meta property="og:description" content="如果要同时与多个 channel 发生交互，可以借助 select 语句。">
 <meta property="og:locale">
-<meta property="article:published_time" content="2021-01-13T09:29:54.000Z">
+<meta property="article:published_time" content="2021-01-21T07:56:17.000Z">
 <meta property="article:author" content="李剑扬">
 <meta property="article:tag" content="Go语言">
 <meta name="twitter:card" content="summary">
 
 
-<link rel="canonical" href="https://blog.leejianyang.me/golang-waitgroup/">
+<link rel="canonical" href="https://blog.leejianyang.me/golang-select/">
 
 
 <script class="page-configurations">
@@ -50,7 +50,7 @@
   };
 </script>
 
-  <title>Go语言并发编程笔记（四）：WaitGroup 的使用 | LEE's Blog</title>
+  <title>Go语言并发编程笔记（十）：Select 的使用 | LEE's Blog</title>
   
 
 
@@ -155,7 +155,7 @@
 
   <aside class="sidebar">
 
-    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+    <div class="sidebar-inner sidebar-overview-active">
       <ul class="sidebar-nav">
         <li class="sidebar-nav-toc">
           Table of Contents
@@ -168,7 +168,6 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <section class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#WaitGroup-%E7%9A%84%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text">WaitGroup 的使用场景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#WaitGroup-%E7%9A%84%E7%94%A8%E6%B3%95"><span class="nav-number">2.</span> <span class="nav-text">WaitGroup 的用法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8-WaitGroup-%E6%97%B6%E7%9A%84%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="nav-number">3.</span> <span class="nav-text">使用 WaitGroup 时的注意事项</span></a></li></ol></div>
         </section>
         <!--/noindex-->
 
@@ -233,7 +232,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
-    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/golang-waitgroup/">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/golang-select/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -246,7 +245,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          Go语言并发编程笔记（四）：WaitGroup 的使用
+          Go语言并发编程笔记（十）：Select 的使用
         </h1>
 
         <div class="post-meta-container">
@@ -257,7 +256,7 @@
       </span>
       <span class="post-meta-item-text">Posted on</span>
 
-      <time title="Created: 2021-01-13 17:29:54" itemprop="dateCreated datePublished" datetime="2021-01-13T17:29:54+08:00">2021-01-13</time>
+      <time title="Created: 2021-01-21 15:56:17" itemprop="dateCreated datePublished" datetime="2021-01-21T15:56:17+08:00">2021-01-21</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -279,19 +278,33 @@
     
     
     <div class="post-body" itemprop="articleBody">
-        <p>Go 语言的 sync 包中提供的 WaitGroup 并发原语，是编排 goroutine 的有用工具。</p>
+        <p>如果要同时与多个 channel 发生交互，可以借助 select 语句。</p>
 <a id="more"></a>
 
-<h2 id="WaitGroup-的使用场景"><a href="#WaitGroup-的使用场景" class="headerlink" title="WaitGroup 的使用场景"></a>WaitGroup 的使用场景</h2><p>WaitGroup 是 sync 包提供的并发原语。它的作用是等待一组 goroutine 执行完毕。如果不关心 goroutine 的执行结果，那么就可以考虑使用 WaitGroup。当然也可以结合使用 channel 和 select 达到类似的效果。</p>
-<h2 id="WaitGroup-的用法"><a href="#WaitGroup-的用法" class="headerlink" title="WaitGroup 的用法"></a>WaitGroup 的用法</h2><p>WaitGroup 提供了三个方法:</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(wg *WaitGroup)</span> <span class="title">Add</span><span class="params">(delta <span class="keyword">int</span>)</span></span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(wg *WaitGroup)</span> <span class="title">Done</span><span class="params">()</span></span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(wg *WaitGroup)</span> <span class="title">Wait</span><span class="params">()</span></span></span><br></pre></td></tr></table></figure>
+<p>先来看看一个 select 的简单例子：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">start := time.Now()</span><br><span class="line">c := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    time.Sleep(<span class="number">5</span>*time.Second)</span><br><span class="line">    <span class="built_in">close</span>(c)</span><br><span class="line">&#125;()</span><br><span class="line"></span><br><span class="line">fmt.Println(<span class="string">&quot;Blocking on read...&quot;</span>)</span><br><span class="line"><span class="keyword">select</span> &#123;</span><br><span class="line"><span class="keyword">case</span> &lt;-c:</span><br><span class="line">    fmt.Printf(<span class="string">&quot;Unblocked %v later.\n&quot;</span>, time.Since(start))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行这段程序，会输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Blocking on read...</span><br><span class="line">Unblocked 5.004568624s later.</span><br></pre></td></tr></table></figure>
 
-<p>以下是一个基本用法示例：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">hello := <span class="function"><span class="keyword">func</span><span class="params">(wg *sync.WaitGroup, id <span class="keyword">int</span>)</span></span> &#123;</span><br><span class="line">    <span class="keyword">defer</span> wg.Done()</span><br><span class="line">    fmt.Printf(<span class="string">&quot;Hello from %v!\n&quot;</span>, id)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> numGreeters = <span class="number">5</span></span><br><span class="line"><span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">wg.Add(numGreeters)</span><br><span class="line"><span class="keyword">for</span> i := <span class="number">0</span>; i &lt; numGreeters; i++ &#123;</span><br><span class="line">    <span class="keyword">go</span> hello(&amp;wg, i+<span class="number">1</span>)</span><br><span class="line">&#125;</span><br><span class="line">wg.Wait()    <span class="comment">// 阻塞等待所有的 goroutine 执行完毕</span></span><br></pre></td></tr></table></figure>
+<p>以上这个例子，虽然并没体现出「同时与多个 channel」进行交互，但可以看出使用 select 语句的基本模式。select 语句与网络编程中 I/O 多路复用的 select 技术很像，也是发生一些事件（例如 channel 可读）时进行一些操作，利用 select 的好处是一个 goroutine 可以并发与多个 channel 进行交互。</p>
+<p>可能会对使用 select 产生一些疑问，例如：</p>
+<ul>
+<li>如果 select 中的多个 channel 同时可读，会发生什么事？</li>
+<li>如果 select 中的各个 channel 都不就绪怎么办？有没有超时机制？</li>
+<li>在等待 channel 就绪的过程中，能不能干别的事情？</li>
+</ul>
+<p>以下通过一些例子来看看这三个问题。</p>
+<p>先来看看如果有多个 channel 同时就绪，select 会如何处理：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    c1 := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">    <span class="built_in">close</span>(c1)</span><br><span class="line">    c2 := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">    <span class="built_in">close</span>(c2)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">var</span> c1Count, c2Count <span class="keyword">int</span></span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">1000</span>; i &gt; <span class="number">0</span>; i-- &#123;</span><br><span class="line">        <span class="keyword">select</span> &#123;</span><br><span class="line">        <span class="keyword">case</span> &lt;-c1:</span><br><span class="line">            c1Count++</span><br><span class="line">        <span class="keyword">case</span> &lt;-c2:</span><br><span class="line">            c2Count++</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fmt.Printf(<span class="string">&quot;c1Count: %d\nc2Count: %d\n&quot;</span>, c1Count, c2Count)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行以上程序，会输出:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">c1Count: 508</span><br><span class="line">c2Count: 492</span><br></pre></td></tr></table></figure>
+<p>以上例子使用可以对已关闭的 channel 多次反复读取的特性来模拟 channel 读就绪的情况。可以看出当多个 channel 同时就绪的时候，select 会较均衡地平均分对各个 channel 的读操作。</p>
+<p>如果一直没有可读的 channel 就绪，还可以在 select 中应用上超时机制：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> c &lt;-<span class="keyword">chan</span> <span class="keyword">int</span></span><br><span class="line"><span class="keyword">select</span> &#123;</span><br><span class="line"><span class="keyword">case</span> &lt;-c:</span><br><span class="line"><span class="keyword">case</span> &lt;-time.After(<span class="number">1</span> * time.Second):</span><br><span class="line">    fmt.Println(<span class="string">&quot;Timed out.&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样就可以避免一直无限地等待 channel 就绪了。</p>
+<p>接下来的例子看看如果所有的 channel 都未就绪，还可以做别的事情：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">start := time.Now()</span><br><span class="line"><span class="keyword">var</span> c1, c2 &lt;-<span class="keyword">chan</span> <span class="keyword">int</span></span><br><span class="line"><span class="keyword">select</span> &#123;</span><br><span class="line"><span class="keyword">case</span> &lt;-c1:</span><br><span class="line"><span class="keyword">case</span> &lt;-c2:</span><br><span class="line"><span class="keyword">default</span>:</span><br><span class="line">    fmt.Printf(<span class="string">&quot;In default after %v\n&quot;</span>, time.Since(start))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h2 id="使用-WaitGroup-时的注意事项"><a href="#使用-WaitGroup-时的注意事项" class="headerlink" title="使用 WaitGroup 时的注意事项"></a>使用 WaitGroup 时的注意事项</h2><p>一个是 WaitGroup 的计数不能为负值，就是说 WaitGroup.Done() 调用的次数不能超过使用 WaitGroup.Add() 累加的总数。</p>
-<p>另一个是要执行所有的 Add() 操作后再调用 Wait()，不然会导致运行效果不符合预期。</p>
-<p>还有一个是，如果一个 goroutine 在 Wait() 等待期间，还有别的 goroutine 调用同一个变量的 Add() 操作会导致发生错误。所以说 WaitGroup 虽然可以重用，但在开始了 Wait() 之后，要等 Wait() 结束后再开始新一轮的使用。</p>
 <hr>
 <p>参考资料：</p>
 <ul>
@@ -313,14 +326,11 @@
 
           <div class="post-nav">
             <div class="post-nav-item">
-                <a href="/goroutines-basis/" rel="prev" title="Go语言并发编程笔记（三）：Goroutine 基础">
-                  <i class="fa fa-chevron-left"></i> Go语言并发编程笔记（三）：Goroutine 基础
+                <a href="/golang-channel/" rel="prev" title="Go语言并发编程笔记（九）：Channel 的使用">
+                  <i class="fa fa-chevron-left"></i> Go语言并发编程笔记（九）：Channel 的使用
                 </a>
             </div>
             <div class="post-nav-item">
-                <a href="/golang-mutex-and-rwmutex/" rel="next" title="Go语言并发编程笔记（五）：Mutex 和 RWMutex 的使用">
-                  Go语言并发编程笔记（五）：Mutex 和 RWMutex 的使用 <i class="fa fa-chevron-right"></i>
-                </a>
             </div>
           </div>
     </footer>
