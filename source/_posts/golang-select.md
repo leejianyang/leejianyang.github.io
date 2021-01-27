@@ -98,6 +98,40 @@ default:
 }
 ```
 
+select 会配合 for 循环使用，这是一种常用的模式：
+```go
+for {    // 可能是无限循环，或者是迭代遍历某些东西
+    select {
+
+    }
+}
+```
+
+例如：
+```go
+for _, s := range []string{"a", "b", "c"} {
+    select {
+    case <- done:
+        return
+    case stringStream <- s:
+    }
+}
+```
+
+再例如：
+```go
+for {
+    select {
+    case <-done:
+        return
+    default:
+        // 这里可以做些别的事情
+    }
+
+    // 这里可以做一些别的事情
+}
+```
+
 ---
 参考资料：
-- 《Goncurrency in Go》第三章，作者 Katherine Cox-Buday
+- 《Goncurrency in Go》第三、四章，作者 Katherine Cox-Buday
