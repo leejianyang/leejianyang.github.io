@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
+  </script>
+
+  <meta name="description" content="在整个 pipeline 中，可能有某些阶段特别费时，这会造成整个 pipeline 的阻塞，此时需要一些方法提高整个 pipeline 的并发效率。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go语言并发编程笔记（十四）：Fan-Out, Fan-In模式">
+<meta property="og:url" content="https://blog.leejianyang.me/golang-fan-in-fan-out/index.html">
+<meta property="og:site_name" content="LEE&#39;s Blog">
+<meta property="og:description" content="在整个 pipeline 中，可能有某些阶段特别费时，这会造成整个 pipeline 的阻塞，此时需要一些方法提高整个 pipeline 的并发效率。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2021-01-28T09:20:03.000Z">
+<meta property="article:author" content="李剑扬">
+<meta property="article:tag" content="Go语言">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://blog.leejianyang.me/golang-fan-in-fan-out/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh'
+  };
+</script>
+
+  <title>Go语言并发编程笔记（十四）：Fan-Out, Fan-In模式 | LEE's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">LEE's Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <section class="post-toc-wrap sidebar-panel">
+        </section>
+        <!--/noindex-->
+
+        <section class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">李剑扬</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">51</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">categories</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">39</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </section>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/golang-fan-in-fan-out/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="李剑扬">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LEE's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Go语言并发编程笔记（十四）：Fan-Out, Fan-In模式
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2021-01-28 17:20:03" itemprop="dateCreated datePublished" datetime="2021-01-28T17:20:03+08:00">2021-01-28</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/coding/" itemprop="url" rel="index"><span itemprop="name">coding</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>在整个 pipeline 中，可能有某些阶段特别费时，这会造成整个 pipeline 的阻塞，此时需要一些方法提高整个 pipeline 的并发效率。</p>
+<a id="more"></a>
+
+<p>先来看一个程序代码，这段代码做的事情是：随机生成 10 个 50,000,000 以内的质数。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">    <span class="string">&quot;math/rand&quot;</span></span><br><span class="line">    <span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    repeatFn := <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        fn <span class="keyword">func</span>()</span> <span class="title">interface</span></span>&#123;&#125;,</span><br><span class="line">    ) &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125; &#123;</span><br><span class="line">        valueStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">defer</span> <span class="built_in">close</span>(valueStream)</span><br><span class="line">            <span class="keyword">for</span> &#123;</span><br><span class="line">                <span class="keyword">select</span> &#123;</span><br><span class="line">                <span class="keyword">case</span> &lt;-done:</span><br><span class="line">                    <span class="keyword">return</span></span><br><span class="line">                <span class="keyword">case</span> valueStream &lt;- fn():</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> valueStream</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    take := <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        valueStream &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        num <span class="keyword">int</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">    )</span> &lt;-<span class="title">chan</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">        takeStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">defer</span> <span class="built_in">close</span>(takeStream)</span><br><span class="line">            <span class="keyword">for</span> i := <span class="number">0</span>; i &lt; num; i++ &#123;</span><br><span class="line">                <span class="keyword">select</span> &#123;</span><br><span class="line">                <span class="keyword">case</span> &lt;-done:</span><br><span class="line">                    <span class="keyword">return</span></span><br><span class="line">                <span class="keyword">case</span> takeStream &lt;- &lt;-valueStream:</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> takeStream</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    toInt := <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        valueStream &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">    )</span> &lt;-<span class="title">chan</span> <span class="title">int</span></span> &#123;</span><br><span class="line">        intStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">defer</span> <span class="built_in">close</span>(intStream)</span><br><span class="line">            <span class="keyword">for</span> v := <span class="keyword">range</span> valueStream &#123;</span><br><span class="line">                <span class="keyword">select</span> &#123;</span><br><span class="line">                <span class="keyword">case</span> &lt;-done:</span><br><span class="line">                    <span class="keyword">return</span></span><br><span class="line">                <span class="keyword">case</span> intStream &lt;- v.(<span class="keyword">int</span>):</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line">        <span class="keyword">return</span> intStream</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    primeFinder := <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        intStream &lt;-<span class="keyword">chan</span> <span class="keyword">int</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">    )</span> &lt;-<span class="title">chan</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">        primeStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">defer</span> <span class="built_in">close</span>(primeStream)</span><br><span class="line">            <span class="keyword">for</span> integer := <span class="keyword">range</span> intStream &#123;</span><br><span class="line">                integer -= <span class="number">1</span></span><br><span class="line">                prime := <span class="literal">true</span></span><br><span class="line">                <span class="keyword">for</span> divisor := integer - <span class="number">1</span>; divisor &gt; <span class="number">1</span>; divisor-- &#123;</span><br><span class="line">                    <span class="keyword">if</span> integer % divisor == <span class="number">0</span> &#123;</span><br><span class="line">                        prime = <span class="literal">false</span></span><br><span class="line">                        <span class="keyword">break</span></span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> prime &#123;</span><br><span class="line">                    <span class="keyword">select</span> &#123;</span><br><span class="line">                    <span class="keyword">case</span> &lt;- done:</span><br><span class="line">                        <span class="keyword">return</span></span><br><span class="line">                    <span class="keyword">case</span> primeStream &lt;- integer:</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> primeStream</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    rand := <span class="function"><span class="keyword">func</span><span class="params">()</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">        <span class="comment">// 这段代码故意没有在每次运行时重新生成随机种子，便于多次复现，比较不同实现的效率</span></span><br><span class="line">        <span class="keyword">return</span> rand.Intn(<span class="number">50000000</span>)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    done := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">    <span class="keyword">defer</span> <span class="built_in">close</span>(done)</span><br><span class="line"></span><br><span class="line">    start := time.Now()</span><br><span class="line"></span><br><span class="line">    randIntStream := toInt(done, repeatFn(done, rand))</span><br><span class="line">    fmt.Println(<span class="string">&quot;Primes: &quot;</span>)</span><br><span class="line">    <span class="keyword">for</span> prime := <span class="keyword">range</span> take(done, primeFinder(done, randIntStream), <span class="number">10</span>) &#123;</span><br><span class="line">        fmt.Printf(<span class="string">&quot;\t%d\n&quot;</span>, prime)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fmt.Printf(<span class="string">&quot;Search took: %v&quot;</span>, time.Since(start))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上这段代码应用上 pipeline 模式，但运行起来很费时。其中一组随机种子，要 9 秒多才能运行完毕。</p>
+<p>如何改良呢？可以应用「fan-out, fan-in」模式。 Fan-out 是指开启多个 goroutine 来并发处理 pipeline 中上游传过来的输入数据，fan-in 是指将多个 goroutine 处理完成的数据汇入同一个 channel 传递给下游。</p>
+<p>如果某个 pipeline stage 符合以下条件，就可以效率使用这种模式：</p>
+<ul>
+<li>每次数据处理都是独立进行的，也就说不依赖于之前处理过的数据（order-independent）</li>
+<li>该 stage 运行时间特别长</li>
+</ul>
+<p>那显而易见，上文程序中的 primeFinder 函数特别适合改成 fan-out, fan-in 的模式。</p>
+<p>那么将上文的程序修改如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">    <span class="string">&quot;math/rand&quot;</span></span><br><span class="line">    <span class="string">&quot;time&quot;</span></span><br><span class="line">    <span class="string">&quot;sync&quot;</span></span><br><span class="line">    <span class="string">&quot;runtime&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    repeatFn := <span class="function"><span class="keyword">func</span><span class="params">(done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;, fn <span class="keyword">func</span>()</span> <span class="title">interface</span></span>&#123;&#125;) &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125; &#123;</span><br><span class="line">        valueStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">defer</span> <span class="built_in">close</span>(valueStream)</span><br><span class="line">            <span class="keyword">for</span> &#123;</span><br><span class="line">                <span class="keyword">select</span> &#123;</span><br><span class="line">                <span class="keyword">case</span> &lt;-done:</span><br><span class="line">                    <span class="keyword">return</span></span><br><span class="line">                <span class="keyword">case</span> valueStream &lt;-fn():</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> valueStream</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    take := <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        valueStream &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        num <span class="keyword">int</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">    )</span> &lt;-<span class="title">chan</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">        takeStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">defer</span> <span class="built_in">close</span>(takeStream)</span><br><span class="line">            <span class="keyword">for</span> i := <span class="number">0</span>; i &lt; num; i++ &#123;</span><br><span class="line">                <span class="keyword">select</span> &#123;</span><br><span class="line">                <span class="keyword">case</span> &lt;-done:</span><br><span class="line">                    <span class="keyword">return</span></span><br><span class="line">                <span class="keyword">case</span> takeStream &lt;- &lt;-valueStream:</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> takeStream</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    toInt := <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        valueStream &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">    )</span> &lt;-<span class="title">chan</span> <span class="title">int</span></span> &#123;</span><br><span class="line">        intStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">defer</span> <span class="built_in">close</span>(intStream)</span><br><span class="line">            <span class="keyword">for</span> v := <span class="keyword">range</span> valueStream &#123;</span><br><span class="line">                <span class="keyword">select</span> &#123;</span><br><span class="line">                <span class="keyword">case</span> &lt;-done:</span><br><span class="line">                    <span class="keyword">return</span></span><br><span class="line">                <span class="keyword">case</span> intStream &lt;- v.(<span class="keyword">int</span>):</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line">        <span class="keyword">return</span> intStream</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    primeFinder := <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        intStream &lt;-<span class="keyword">chan</span> <span class="keyword">int</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">    )</span> &lt;-<span class="title">chan</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">        primeStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">defer</span> <span class="built_in">close</span>(primeStream)</span><br><span class="line">            <span class="keyword">for</span> integer := <span class="keyword">range</span> intStream &#123;</span><br><span class="line">                integer -= <span class="number">1</span></span><br><span class="line">                prime := <span class="literal">true</span></span><br><span class="line">                <span class="keyword">for</span> divisor := integer - <span class="number">1</span>; divisor &gt; <span class="number">1</span>; divisor-- &#123;</span><br><span class="line">                    <span class="keyword">if</span> integer % divisor == <span class="number">0</span> &#123;</span><br><span class="line">                        prime = <span class="literal">false</span></span><br><span class="line">                        <span class="keyword">break</span></span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> prime &#123;</span><br><span class="line">                    <span class="keyword">select</span> &#123;</span><br><span class="line">                    <span class="keyword">case</span> &lt;- done:</span><br><span class="line">                        <span class="keyword">return</span></span><br><span class="line">                    <span class="keyword">case</span> primeStream &lt;- integer:</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> primeStream</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fanIn := <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">        channels ...&lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">    )</span> &lt;-<span class="title">chan</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">        <span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">        multiplexedStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line"></span><br><span class="line">        multiplex := <span class="function"><span class="keyword">func</span><span class="params">(c &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span></span> &#123;</span><br><span class="line">            <span class="keyword">defer</span> wg.Done()</span><br><span class="line">            <span class="keyword">for</span> i := <span class="keyword">range</span> c &#123;</span><br><span class="line">                <span class="keyword">select</span> &#123;</span><br><span class="line">                <span class="keyword">case</span> &lt;-done:</span><br><span class="line">                    <span class="keyword">return</span></span><br><span class="line">                <span class="keyword">case</span> multiplexedStream &lt;- i:</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        wg.Add(<span class="built_in">len</span>(channels))</span><br><span class="line">        <span class="keyword">for</span> _, c := <span class="keyword">range</span> channels &#123;</span><br><span class="line">            <span class="keyword">go</span> multiplex(c)</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            wg.Wait()</span><br><span class="line">            <span class="built_in">close</span>(multiplexedStream)</span><br><span class="line">        &#125;()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> multiplexedStream</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    rand := <span class="function"><span class="keyword">func</span><span class="params">()</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">        <span class="keyword">return</span> rand.Intn(<span class="number">50000000</span>)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    done := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">    <span class="keyword">defer</span> <span class="built_in">close</span>(done)</span><br><span class="line"></span><br><span class="line">    randIntStream := toInt(done, repeatFn(done, rand))</span><br><span class="line"></span><br><span class="line">    start := time.Now()</span><br><span class="line"></span><br><span class="line">    numFinders := runtime.NumCPU()</span><br><span class="line">    fmt.Printf(<span class="string">&quot;Spinning up %d prime finders.\n&quot;</span> ,numFinders)</span><br><span class="line">    finders := <span class="built_in">make</span>([]&lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;, numFinders)</span><br><span class="line"></span><br><span class="line">    fmt.Println(<span class="string">&quot;Primes: &quot;</span>)</span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">0</span>; i &lt; numFinders; i++ &#123;</span><br><span class="line">        finders[i] = primeFinder(done, randIntStream)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> prime := <span class="keyword">range</span> take(done, fanIn(done, finders...), <span class="number">10</span>) &#123;</span><br><span class="line">        fmt.Printf(<span class="string">&quot;\t%d\n&quot;</span>, prime)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fmt.Printf(<span class="string">&quot;Search took: %v&quot;</span>, time.Since(start))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>经过这样的优化后，随机生成 10 个 50,000,000 以内的质数的效率提升了好几倍。</p>
+<p>以上 Fan-out，fan-in 是如何实现的呢？首先，可以看到以上这段代码根据 CPU 的数量开启了多个 goroutine 来运行 primeFinder，这是一个 fan-out 的操作：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">numFinders := runtime.NumCPU()</span><br><span class="line">finders := <span class="built_in">make</span>([]&lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;, numFinders)</span><br><span class="line"><span class="keyword">for</span> i := <span class="number">0</span>; i &lt; numFinders; i++ &#123;</span><br><span class="line">    finders[i] = primeFinder(done, randIntStream)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>每一个独立的 finder 都会从上游 randIntStream 中获取数据。</p>
+<p>那如何确保各个运行 primeFinder 的 goroutine 都能正常运行，并 fan-in 到下游呢？关键在新引入的 fan-in 函数：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">fanIn := <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">    done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">    channels ...&lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">)</span> &lt;-<span class="title">chan</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">    <span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">    multiplexedStream := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line"></span><br><span class="line">    multiplex := <span class="function"><span class="keyword">func</span><span class="params">(c &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span></span> &#123;</span><br><span class="line">        <span class="keyword">defer</span> wg.Done()</span><br><span class="line">        <span class="keyword">for</span> i := <span class="keyword">range</span> c &#123;</span><br><span class="line">            <span class="keyword">select</span> &#123;</span><br><span class="line">            <span class="keyword">case</span> &lt;-done:</span><br><span class="line">                <span class="keyword">return</span></span><br><span class="line">            <span class="keyword">case</span> multiplexedStream &lt;- i:</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    wg.Add(<span class="built_in">len</span>(channels))</span><br><span class="line">    <span class="keyword">for</span> _, c := <span class="keyword">range</span> channels &#123;</span><br><span class="line">        <span class="keyword">go</span> multiplex(c)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        wg.Wait()</span><br><span class="line">        <span class="built_in">close</span>(multiplexedStream)</span><br><span class="line">    &#125;()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> multiplexedStream</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以说 primeFinder 是一个 stage，take 是一个 stage，在没引入「fan-out, fan-in」模式前，primeFinder 生成的数据直接流入 take；但引入了「fan-out, fan-in」模式后，primeFinder 生成的数据先流入 fan-in，由 fan-in 再统一流入 take。Fan-in 这个 stage 会确保各个并发运行的 primeFinder 产生的数据都会集中流入到下游。</p>
+<p>重新完整捋一捋。首先源头的 repeatFn 生成随机数，然后经过 toInt 进行类型转换后，数据进入 randIntStream channel 等待下游接收。下游的 primeFinder 由多个（数量因当前机器的 CPU 而定）goroutine 并发运行，每个 goroutine 都会从 randIntStream 尝试提取数据，提取到数据后计算是否质数，若是质数，则把数据传入 primeStream channel 中。要注意的是，不同的 primeFinder 创建了不同的 primeStream channel。然后 fan-in 中也开启了与 primeFinder 并发数量相同的 goroutine，每个独立的 goroutine 从独立的 primeStream channel 中读取数据，把数据集中传入 multiplexedStream channel 中，等待下游的 take 阶段读取。</p>
+<p>以上就是一个「fan-out, fan-in」模式的例子。</p>
+<hr>
+<p>参考资料：</p>
+<ul>
+<li>《Goncurrency in Go》第四章，作者 Katherine Cox-Buday</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Go%E8%AF%AD%E8%A8%80/" rel="tag"># Go语言</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/golang-pipeline/" rel="prev" title="Go语言并发编程笔记（十三）：Pipeline">
+                  <i class="fa fa-chevron-left"></i> Go语言并发编程笔记（十三）：Pipeline
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+      
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李剑扬</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
