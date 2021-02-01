@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.leejianyang.me","root":"/","images":"/images","scheme":"Mist","version":"8.0.2","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
+  </script>
+
+  <meta name="description" content="Context 是一个在调用栈上下文中传递数据时非常有用的包，它支持在不同调用层级的 goroutine 之间传递取消信号及其它数据。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go语言并发编程笔记（十六）：Context 的使用">
+<meta property="og:url" content="https://blog.leejianyang.me/golang-context/index.html">
+<meta property="og:site_name" content="LEE&#39;s Blog">
+<meta property="og:description" content="Context 是一个在调用栈上下文中传递数据时非常有用的包，它支持在不同调用层级的 goroutine 之间传递取消信号及其它数据。">
+<meta property="og:locale">
+<meta property="og:image" content="https://blog.leejianyang.me/images/golang-context/01.jpg">
+<meta property="article:published_time" content="2021-01-31T13:17:06.000Z">
+<meta property="article:author" content="李剑扬">
+<meta property="article:tag" content="Go语言">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.leejianyang.me/images/golang-context/01.jpg">
+
+
+<link rel="canonical" href="https://blog.leejianyang.me/golang-context/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh'
+  };
+</script>
+
+  <title>Go语言并发编程笔记（十六）：Context 的使用 | LEE's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">LEE's Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <section class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Context-%E5%8C%85%E7%9A%84%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">Context 包的简介</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#WithCancel"><span class="nav-number">1.1.</span> <span class="nav-text">WithCancel</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#WithDeadline"><span class="nav-number">1.2.</span> <span class="nav-text">WithDeadline</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#WithTimeout"><span class="nav-number">1.3.</span> <span class="nav-text">WithTimeout</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#CancelFunc"><span class="nav-number">1.4.</span> <span class="nav-text">CancelFunc</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%A7%E7%94%9F%E7%A9%BA%E7%9A%84-Context"><span class="nav-number">1.5.</span> <span class="nav-text">产生空的 Context</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8-Context-%E6%97%B6%E7%9A%84%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="nav-number">1.6.</span> <span class="nav-text">使用 Context 时的注意事项</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Context-%E7%9A%84%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">2.</span> <span class="nav-text">Context 的应用场景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Context-%E4%BD%BF%E7%94%A8%E5%AE%9E%E4%BE%8B%EF%BC%9A%E7%BB%88%E7%BB%93%E8%BF%90%E8%A1%8C%E4%B8%AD%E7%9A%84-goroutine"><span class="nav-number">3.</span> <span class="nav-text">Context 使用实例：终结运行中的 goroutine</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Context-%E4%BD%BF%E7%94%A8%E5%AE%9E%E4%BE%8B%EF%BC%9A%E4%BC%A0%E9%80%92-request-scoped-%E6%95%B0%E6%8D%AE"><span class="nav-number">4.</span> <span class="nav-text">Context 使用实例：传递 request-scoped 数据</span></a></li></ol></div>
+        </section>
+        <!--/noindex-->
+
+        <section class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">李剑扬</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">53</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">categories</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">39</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </section>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="https://blog.leejianyang.me/golang-context/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="李剑扬">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LEE's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Go语言并发编程笔记（十六）：Context 的使用
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2021-01-31 21:17:06" itemprop="dateCreated datePublished" datetime="2021-01-31T21:17:06+08:00">2021-01-31</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/coding/" itemprop="url" rel="index"><span itemprop="name">coding</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>Context 是一个在调用栈上下文中传递数据时非常有用的包，它支持在不同调用层级的 goroutine 之间传递取消信号及其它数据。</p>
+<a id="more"></a>
+
+<h2 id="Context-包的简介"><a href="#Context-包的简介" class="headerlink" title="Context 包的简介"></a>Context 包的简介</h2><p>Context 包稍微有一点儿复杂，先引用官方文档的介绍：</p>
+<blockquote>
+<p>Package context defines the Context type, which carries deadlines, cancellation signals, and other request-scoped values across API boundaries and between processes.</p>
+<p>Incoming requests to a server should create a Context, and outgoing calls to servers should accept a Context. The chain of function calls between them must propagate the Context, optionally replacing it with a derived Context created using WithCancel, WithDeadline, WithTimeout, or WithValue. When a Context is canceled, all Contexts derived from it are also canceled.</p>
+<p>The WithCancel, WithDeadline, and WithTimeout functions take a Context (the parent) and return a derived Context (the child) and a CancelFunc. Calling the CancelFunc cancels the child and its children, removes the parent’s reference to the child, and stops any associated timers. Failing to call the CancelFunc leaks the child and its children until the parent is canceled or the timer fires. The go vet tool checks that CancelFuncs are used on all control-flow paths.</p>
+<p>Use context Values only for request-scoped data that transits processes and APIs, not for passing optional parameters to functions.</p>
+<p>The same Context may be passed to functions running in different goroutines; Contexts are safe for simultaneous use by multiple goroutines.</p>
+</blockquote>
+<p>来看看 Context 类型的接口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Context <span class="keyword">interface</span> &#123;</span><br><span class="line">    Deadline() (deadline time.Time, ok <span class="keyword">bool</span>)</span><br><span class="line"></span><br><span class="line">    Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line"></span><br><span class="line">    Err() error</span><br><span class="line"></span><br><span class="line">    Value(key <span class="keyword">interface</span>&#123;&#125;) <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>接下来看看 Context 包提供了几个主要的函数。</p>
+<h3 id="WithCancel"><a href="#WithCancel" class="headerlink" title="WithCancel"></a>WithCancel</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">WithCancel</span><span class="params">(parent Context)</span> <span class="params">(ctx Context, cancel CancelFunc)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>调用 WithCancel 需要把父 goroutine 传过来的 context 作为参数，返回一个新的 context 和 cancel 函数。在两种情况下，这个新的 ctx 的 Done channel 会关闭：情况一是 cancel 方法被调用；情况二是 parent 的 Done channel 关闭了。</p>
+<h3 id="WithDeadline"><a href="#WithDeadline" class="headerlink" title="WithDeadline"></a>WithDeadline</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">WithDeadline</span><span class="params">(parent Context, d time.Time)</span> <span class="params">(Context, CancelFunc)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>调用 WithDeadline 也与 WithCancel 类似，就是说根据父 context 创建新的 context，同时可以指定该 context 的过期时间。如果该过期时间比 parent 的过期时间迟，那么还是使用 parent 的过期时间作为新 context 的过期时间。新的 context 的 Done channel 在三种情况下关闭：（1）到达过期时间（2）CancelFunc 被调用（3）父 context 的 Done channel 关闭。</p>
+<h3 id="WithTimeout"><a href="#WithTimeout" class="headerlink" title="WithTimeout"></a>WithTimeout</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">WithTimeout</span><span class="params">(parent Context, timeout time.Duration)</span> <span class="params">(Context, CancelFunc)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>WithTimeout 的使用几乎与 WithDeadline 一样，不同之处是 WithDeadline 指定的是在某个时刻超时，WithTimeout 指定的是在某个时长后超时。</p>
+<h3 id="CancelFunc"><a href="#CancelFunc" class="headerlink" title="CancelFunc"></a>CancelFunc</h3><p>上文多次出现 CancelFunc 类型的函数，官网文档说得很清楚了：</p>
+<blockquote>
+<p>A CancelFunc tells an operation to abandon its work. A CancelFunc does not wait for the work to stop. A CancelFunc may be called by multiple goroutines simultaneously. After the first call, subsequent calls to a CancelFunc do nothing.</p>
+</blockquote>
+<h3 id="产生空的-Context"><a href="#产生空的-Context" class="headerlink" title="产生空的 Context"></a>产生空的 Context</h3><p>有两个方法可以产生空的 Context</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Background</span><span class="params">()</span> <span class="title">Context</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TODO</span><span class="params">()</span> <span class="title">Context</span></span></span><br></pre></td></tr></table></figure>
+
+<p>Background 函数返回的 Context 是一个空的 Context，它永远不会自动取消，不包含值，没有过期时间。通常是最顶层的 Context。</p>
+<p>TODO 函数返回的 Context 跟 Background 返回的 Context 类似，不过语义上用于该 Context 用途不明的情况。</p>
+<h3 id="使用-Context-时的注意事项"><a href="#使用-Context-时的注意事项" class="headerlink" title="使用 Context 时的注意事项"></a>使用 Context 时的注意事项</h3><ul>
+<li>不要将 Context 存储在一个结构体中</li>
+<li>在函数中显式地传递 Context，通常是函数的第一个参数</li>
+<li>不要传递 nil Context，如果你不知道使用哪个 Context，那么就使用 TODO 函数返回的 context</li>
+</ul>
+<h2 id="Context-的应用场景"><a href="#Context-的应用场景" class="headerlink" title="Context 的应用场景"></a>Context 的应用场景</h2><p>Context 的含义是「上下文」，顾名思义，Context 就是用于在多个 goroutine 调用栈之中传递数据的。例如在 main 函数中开启一个 goroutine 运行 A 函数，A 函数中又开启一个 goroutine 运行 B 函数，那么怎么将信息从 main 函数中传递到 B 函数中呢？main 函数如何控制 B 函数合适运行结束呢？这都可以通过 Context 来传递上下文信息。</p>
+<p>概括起来，Context 包主要有两个方面的用途：</p>
+<ul>
+<li>在并发调用栈中，取消一系列的调用操作</li>
+<li>在调用栈中传递数据</li>
+</ul>
+<p>先说「取消调用」的使用场景，通常有几种情况，一是当前的 goroutine 要通知子 goroutine 提前结束；二是当前的 goroutine 收到父 goroutine 的通知要提前结束；三是运行超时了或者到达一定时限了，goroutine 要结束。具体这几种情况如何应用 Context 包，下文再具体举例子。</p>
+<p>还可以利用 Context 在 goroutine 调用栈中传递数据，官方文档强调，Context 传递的数据是「request-scoped data」，但官方文档中并没有说什么样的数据才算是 request-scoped data，《Concurrency in Go》的作者给出了他的理解：</p>
+<ul>
+<li>The data should transit process or API boundaries：就是说这个数据是打算跨进程传输的</li>
+<li>The data should be immutable：数据不可改变</li>
+<li>The data should trend toward simple types：如果数据是需要跨进程的话，那么基本数据类型方便接收方来使用</li>
+<li>The data should be data, not types with methods：只包含数据，不包含方法</li>
+<li>The data should help decorate operations, not drive them：如果接收方的算法行为是受 Context 包含的某些数据影响，那么这些数据不应该放在 Context 中，而是应该作为参数传递</li>
+</ul>
+<p>这几条也不是什么金科玉律，仅供参考。</p>
+<h2 id="Context-使用实例：终结运行中的-goroutine"><a href="#Context-使用实例：终结运行中的-goroutine" class="headerlink" title="Context 使用实例：终结运行中的 goroutine"></a>Context 使用实例：终结运行中的 goroutine</h2><p>先来看这一段代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">    <span class="string">&quot;sync&quot;</span></span><br><span class="line">    <span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">    done := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line">    <span class="keyword">defer</span> <span class="built_in">close</span>(done)</span><br><span class="line"></span><br><span class="line">    wg.Add(<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        <span class="keyword">defer</span> wg.Done()</span><br><span class="line">        <span class="keyword">if</span> err := printGreeting(done); err != <span class="literal">nil</span> &#123;</span><br><span class="line">            fmt.Printf(<span class="string">&quot;%v&quot;</span>, err)</span><br><span class="line">            <span class="keyword">return</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;()</span><br><span class="line"></span><br><span class="line">    wg.Add(<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        <span class="keyword">defer</span> wg.Done()</span><br><span class="line">        <span class="keyword">if</span> err := printFarewell(done); err != <span class="literal">nil</span> &#123;</span><br><span class="line">            fmt.Printf(<span class="string">&quot;%v&quot;</span>, err)</span><br><span class="line">            <span class="keyword">return</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;()</span><br><span class="line"></span><br><span class="line">    wg.Wait()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">printGreeting</span><span class="params">(done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">    greeting, err := genGreeting(done)</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line">    fmt.Printf(<span class="string">&quot;%s world!\n&quot;</span>, greeting)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">printFarewell</span><span class="params">(done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">    farewell, err := genFarewell(done)</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line">    fmt.Printf(<span class="string">&quot;%s world!\n&quot;</span>, farewell)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">genGreeting</span><span class="params">(done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span> <span class="params">(<span class="keyword">string</span>, error)</span></span> &#123;</span><br><span class="line">    <span class="keyword">switch</span> locale, err := locale(done); &#123;</span><br><span class="line">    <span class="keyword">case</span> err != <span class="literal">nil</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, err</span><br><span class="line">    <span class="keyword">case</span> locale == <span class="string">&quot;EN/US&quot;</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;hello&quot;</span>, <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, fmt.Errorf(<span class="string">&quot;unsupported locale&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">genFarewell</span><span class="params">(done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span> <span class="params">(<span class="keyword">string</span>, error)</span></span> &#123;</span><br><span class="line">    <span class="keyword">switch</span> locale, err := locale(done); &#123;</span><br><span class="line">    <span class="keyword">case</span> err != <span class="literal">nil</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, err</span><br><span class="line">    <span class="keyword">case</span> locale == <span class="string">&quot;EN/US&quot;</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;goodbye&quot;</span>, <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, fmt.Errorf(<span class="string">&quot;unsupported locale&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">locale</span><span class="params">(done &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;)</span> <span class="params">(<span class="keyword">string</span>, error)</span></span> &#123;</span><br><span class="line">    <span class="keyword">select</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> &lt;-done:</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, fmt.Errorf(<span class="string">&quot;canceld&quot;</span>)</span><br><span class="line">    <span class="keyword">case</span> &lt;-time.After(<span class="number">1</span>*time.Minute):</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;EN/US&quot;</span>, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行以上代码，过了大约一分钟后，会输出以下内容：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">hello world!</span><br><span class="line">goodbye world!</span><br></pre></td></tr></table></figure>
+
+<p>以上代码看起来比较长，但其实就是一个简单的调用逻辑，如下图：</p>
+<p><img src="/images/golang-context/01.jpg"></p>
+<p>现在修改一下以上程序的逻辑：genGreeting 只愿意等待 1 秒钟，如果超过了 1 秒，则终止运行自身，当然也会终止运行 locale；这样一来，printGreeting 的正常逻辑就不会进行下去了，既然 greeting 都不进行了，那么 farewell 的行为也要取消。这一系列的变化，可以通过 Context 来实现。</p>
+<p>先看代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;sync&quot;</span></span><br><span class="line">    <span class="string">&quot;context&quot;</span></span><br><span class="line">    <span class="string">&quot;time&quot;</span></span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">    ctx, cancel := context.WithCancel(context.Background())</span><br><span class="line">    <span class="keyword">defer</span> cancel()</span><br><span class="line"></span><br><span class="line">    wg.Add(<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        <span class="keyword">defer</span> wg.Done()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> err := printGreeting(ctx); err != <span class="literal">nil</span> &#123;</span><br><span class="line">            fmt.Printf(<span class="string">&quot;cannot print greeing: %v\n&quot;</span>, err)</span><br><span class="line">            cancel()</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;()</span><br><span class="line"></span><br><span class="line">    wg.Add(<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        <span class="keyword">defer</span> wg.Done()</span><br><span class="line">        <span class="keyword">if</span> err := printFarewell(ctx); err != <span class="literal">nil</span> &#123;</span><br><span class="line">            fmt.Printf(<span class="string">&quot;cannot print farewell: %v\n&quot;</span>, err)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;()</span><br><span class="line"></span><br><span class="line">    wg.Wait()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">printGreeting</span><span class="params">(ctx context.Context)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">    greeting, err := genGreeting(ctx)</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line">    fmt.Printf(<span class="string">&quot;%s world!\n&quot;</span>, greeting)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">printFarewell</span><span class="params">(ctx context.Context)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">    farewell, err := genFarewell(ctx)</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line">    fmt.Printf(<span class="string">&quot;%s world!\n&quot;</span>, farewell)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">genGreeting</span><span class="params">(ctx context.Context)</span> <span class="params">(<span class="keyword">string</span>, error)</span></span> &#123;</span><br><span class="line">    ctx, cancel := context.WithTimeout(ctx, <span class="number">1</span>*time.Second)</span><br><span class="line">    <span class="keyword">defer</span> cancel()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">switch</span> locale, err := locale(ctx); &#123;</span><br><span class="line">    <span class="keyword">case</span> err != <span class="literal">nil</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, err</span><br><span class="line">    <span class="keyword">case</span> locale == <span class="string">&quot;EN/US&quot;</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;hello&quot;</span>, <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, fmt.Errorf(<span class="string">&quot;unsupported locale&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">genFarewell</span><span class="params">(ctx context.Context)</span> <span class="params">(<span class="keyword">string</span>, error)</span></span> &#123;</span><br><span class="line">    <span class="keyword">switch</span> locale, err := locale(ctx); &#123;</span><br><span class="line">    <span class="keyword">case</span> err != <span class="literal">nil</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, err</span><br><span class="line">    <span class="keyword">case</span> locale == <span class="string">&quot;EN/US&quot;</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;goodbye&quot;</span>, <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, fmt.Errorf(<span class="string">&quot;unsupported locale&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">locale</span><span class="params">(ctx context.Context)</span> <span class="params">(<span class="keyword">string</span>, error)</span></span> &#123;</span><br><span class="line">    <span class="keyword">select</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> &lt;-ctx.Done():</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, ctx.Err()</span><br><span class="line">    <span class="keyword">case</span> &lt;-time.After(<span class="number">1</span> * time.Minute):</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;EN/US&quot;</span>, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上这段代码引入了 Context。Context 在各个调用层次中又生成了新的 context 往下传递。在 genGreeting 函数中生成了一个 1 秒超时的 context，当这个 context 超时后，locale 函数就会发现 ctx 的 channel 已关闭，则会返回 <code>ctx.Err()</code> 的内容，这个内容会逐层向上传递，一直传递到 main 函数。代码的第 19-22 行中，main 函数收到 printGreeting 函数返回的错误信息，就会把 context cancel 掉，这个 cancel 的操作是会一直沿着 printFarewell 那个分支一直传递下去的。Context 的应用大致就是这个样子。</p>
+<p>还有一个小优化的地方。locale 函数要运行 1 分钟才能返回，但是上层的 genGreeting 是不可以接受那么久的。上层的 genGreeting 函数的 timeout 设置是通过 context 传递进来的，所以 locale 是知道这个情况的，因而可以进一步修改一下 locale 函数：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">locale</span><span class="params">(ctx context.Context)</span> <span class="params">(<span class="keyword">string</span>, error)</span></span> &#123;</span><br><span class="line">    <span class="keyword">if</span> deadline, ok := ctx.Deadline(); ok &#123;</span><br><span class="line">        <span class="keyword">if</span> deadline.Sub(time.Now().Add(<span class="number">1</span>*time.Minute)) &lt;= <span class="number">0</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, context.DeadlineExceeded</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">select</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> &lt;-ctx.Done():</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;&quot;</span>, ctx.Err()</span><br><span class="line">    <span class="keyword">case</span> &lt;-time.After(<span class="number">1</span> * time.Minute):</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;EN/US&quot;</span>, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>locale 函数可以先评估一下当前的运行时间是否满足 context 的 timeout 设置，如果发现满足不了，就不浪费时间执行了，直接返回错误。当然这个做法不是万能的，只能按需使用。</p>
+<h2 id="Context-使用实例：传递-request-scoped-数据"><a href="#Context-使用实例：传递-request-scoped-数据" class="headerlink" title="Context 使用实例：传递 request-scoped 数据"></a>Context 使用实例：传递 request-scoped 数据</h2><p>上文已经提到 Context 的另一个用途是作为调用栈中的数据传递。</p>
+<p>使用示例如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;context&quot;</span></span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    ProcessRequest(<span class="string">&quot;jane&quot;</span>, <span class="string">&quot;abc123&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ProcessRequest</span><span class="params">(userID, authToken <span class="keyword">string</span>)</span></span> &#123;</span><br><span class="line">    ctx := context.WithValue(context.Background(), <span class="string">&quot;userID&quot;</span>, userID)</span><br><span class="line">    ctx = context.WithValue(ctx, <span class="string">&quot;authToken&quot;</span>, authToken)</span><br><span class="line">    HandleResponse(ctx)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">HandleResponse</span><span class="params">(ctx context.Context)</span></span> &#123;</span><br><span class="line">    fmt.Printf(</span><br><span class="line">        <span class="string">&quot;handling response for %v(%v)&quot;</span>,</span><br><span class="line">        ctx.Value(<span class="string">&quot;userID&quot;</span>),</span><br><span class="line">        ctx.Value(<span class="string">&quot;authToken&quot;</span>),</span><br><span class="line">    )</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用起来非常简单，只需注意以下条件：</p>
+<ul>
+<li>传递给 WithValue 函数的 key 值必须是可比较的，就是说对这个 key 值执行 == 和 != 操作是可以返回正确的结果的</li>
+<li>value 值必须是线程安全的，也就是说支持多个 goroutine 同时取值</li>
+</ul>
+<hr>
+<p>参考资料：</p>
+<ul>
+<li>《Goncurrency in Go》第四章，作者 Katherine Cox-Buday</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Go%E8%AF%AD%E8%A8%80/" rel="tag"># Go语言</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/golang-channel-pattern/" rel="prev" title="Go语言并发编程笔记（十五）：几种 channel 的使用模式">
+                  <i class="fa fa-chevron-left"></i> Go语言并发编程笔记（十五）：几种 channel 的使用模式
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+      
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李剑扬</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
